@@ -1,0 +1,1595 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>DMA autonome</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#3d4fb8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Disposition : barre latérale (nations + outils) à gauche, zone de travail à droite, fiche ouverte dans un tiroir. Sur tablette étroite la barre devient un menu. */
+:root{
+  --bg:#edeff3; --surface:#fbfbfd; --surface2:#e3e6ee; --ink:#1b1f2e; --muted:#5d6479; --line:#cfd3df;
+  --accent:#3d4fb8; --accent-ink:#ffffff; --accent-soft:#dde1f6;
+  --ok:#1f7a4d; --ok-soft:#d8efe2; --warn:#8a5a00; --warn-soft:#f6e7c4; --bad:#b3261e; --bad-soft:#f8dcd9;
+  --shadow:0 10px 40px rgba(20,25,50,.22);
+  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --f-body:"Source Sans 3","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12141c; --surface:#1a1e2a; --surface2:#242938; --ink:#e8eaf2; --muted:#98a0b8; --line:#333950;
+  --accent:#8c9cf5; --accent-ink:#12141c; --accent-soft:#2a3157;
+  --ok:#6fd0a0; --ok-soft:#17382a; --warn:#e5b95a; --warn-soft:#3d3014; --bad:#f08b83; --bad-soft:#43201d;
+  --shadow:0 10px 40px rgba(0,0,0,.6); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12141c; --surface:#1a1e2a; --surface2:#242938; --ink:#e8eaf2; --muted:#98a0b8; --line:#333950;
+  --accent:#8c9cf5; --accent-ink:#12141c; --accent-soft:#2a3157;
+  --ok:#6fd0a0; --ok-soft:#17382a; --warn:#e5b95a; --warn-soft:#3d3014; --bad:#f08b83; --bad-soft:#43201d;
+  --shadow:0 10px 40px rgba(0,0,0,.6); color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 var(--f-body);margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.2}
+#root{height:100%}
+.app{display:grid;grid-template-columns:272px minmax(0,1fr);height:100%}
+.side{background:var(--surface);border-right:1px solid var(--line);overflow:auto;padding:18px 14px;padding-left:max(14px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:6px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:1.7rem;letter-spacing:.04em;padding:2px 8px 10px}
+.brand small{display:block;font:600 .72rem var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.navlabel{font:700 .72rem var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 8px 2px}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:42px;padding:6px 10px;border:0;border-radius:8px;background:transparent;text-align:left;cursor:pointer}
+.nav:hover{background:var(--surface2)}
+.nav[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.nav span:first-child{min-width:0;overflow-wrap:anywhere}
+.count{font:600 .8rem var(--f-body);color:var(--muted);font-variant-numeric:tabular-nums}
+.badge{min-width:24px;text-align:center;padding:0 7px;border-radius:99px;background:var(--bad);color:var(--surface);font:700 .8rem/1.5 var(--f-body)}
+.addrow{display:flex;gap:6px;padding:4px 2px}
+.main{overflow:auto;min-width:0}
+.mi{max-width:1100px;margin:0 auto;padding-block:22px 80px;padding-left:max(18px,env(safe-area-inset-left,0px));padding-right:max(18px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:16px}
+.topbar{display:none}
+.head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.head h1{font-size:1.7rem}
+.namein{font:700 1.6rem var(--f-display);background:transparent;border:1px solid transparent;border-radius:8px;padding:4px 8px;min-width:0;flex:1 1 220px}
+.namein:hover{border-color:var(--line)}
+.namein:focus{background:var(--surface);border-color:var(--accent);outline:none}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.tab{border:0;background:transparent;padding:10px 16px;min-height:44px;border-bottom:3px solid transparent;cursor:pointer;font-weight:600;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bar>*{min-width:0}
+input[type=text],input[type=search],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:40px;width:100%}
+select{width:auto;max-width:100%}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+textarea{resize:vertical;line-height:1.45;min-height:90px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;padding:6px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.sm{min-height:34px;padding:2px 10px;font-size:.9rem}
+.btn[disabled]{opacity:.5;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{display:flex;flex-direction:column;gap:8px;text-align:left;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;min-width:0}
+.card:hover{border-color:var(--accent)}
+.card-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.card-name{font-family:var(--f-display);font-size:1.08rem;overflow-wrap:anywhere}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:1px 9px;border-radius:99px;background:var(--surface2);font-size:.82rem;font-weight:600}
+.chip.acc{background:var(--accent-soft);color:var(--accent)}
+.pill{display:inline-block;padding:1px 9px;border-radius:99px;font-size:.78rem;font-weight:700;white-space:nowrap}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.meta{color:var(--muted);font-size:.82rem}
+.excerpt{color:var(--muted);font-size:.9rem;overflow-wrap:anywhere}
+.group h3{font-size:1.05rem;margin:6px 0 10px;display:flex;gap:8px;align-items:baseline}
+.group{margin-bottom:10px}
+.empty{padding:30px;border:1px dashed var(--line);border-radius:12px;text-align:center;color:var(--muted)}
+.note{padding:10px 14px;border-radius:10px;background:var(--warn-soft);color:var(--warn);display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.note.info{background:var(--accent-soft);color:var(--accent)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.item{display:flex;gap:6px;align-items:center}
+.item input{flex:1}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tile{padding:12px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--line)}
+.tile b{display:block;font:700 1.8rem var(--f-display);font-variant-numeric:tabular-nums}
+.log{display:flex;flex-direction:column}
+.log div{display:flex;gap:12px;padding:8px 2px;border-bottom:1px solid var(--line)}
+.log time{flex:0 0 150px;color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
+.log span{min-width:0;overflow-wrap:anywhere}
+.scrim{position:fixed;inset:0;background:rgba(10,12,20,.5);z-index:30}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(700px,100%);background:var(--bg);z-index:31;display:flex;flex-direction:column;box-shadow:var(--shadow)}
+.dh{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-right:max(18px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--surface)}
+.dh h2{font-size:1.25rem;min-width:0;overflow-wrap:anywhere}
+.db{flex:1;overflow:auto;padding:16px 18px;padding-right:max(18px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:14px}
+.df{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap;align-items:center;padding:12px 18px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));padding-right:max(18px,env(safe-area-inset-right,0px));border-top:1px solid var(--line);background:var(--surface)}
+.df .grp{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.field{display:flex;flex-direction:column;gap:4px}
+.field>label,.lab{font:700 .75rem var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.row2{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.sec{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.sec-h{display:flex;gap:6px;align-items:center}
+.sec-h input{font-weight:700;flex:1}
+.toggle{display:flex;gap:8px;align-items:center;min-height:40px;padding:4px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+.toggle.on{border-color:var(--ok);background:var(--ok-soft);color:var(--ok);font-weight:700}
+.refs{display:flex;gap:8px;flex-wrap:wrap}
+.ref{display:flex;gap:6px;align-items:center;min-height:38px;padding:4px 10px;border:1px solid var(--line);border-radius:99px;background:var(--surface);cursor:pointer;font-size:.92rem}
+.ref.on{border-color:var(--accent);background:var(--accent-soft)}
+.ref input{accent-color:var(--accent)}
+.errs{padding:10px 12px;border-radius:10px;background:var(--bad-soft);color:var(--bad);display:flex;flex-direction:column;gap:2px}
+.errs b{font-size:.85rem}
+details summary{cursor:pointer;font-weight:600;min-height:32px}
+.sr{position:absolute;left:-9999px}
+.field>label.toggle{text-transform:none;letter-spacing:0;font:inherit;color:var(--ink)}
+.field>label.toggle.on{color:var(--ok);font-weight:700}
+.scope{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.scopeopt{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.scopeopt span{display:flex;flex-direction:column}
+.scopeopt.on{border-color:var(--accent);background:var(--accent-soft)}
+.scopeopt input{margin-top:4px;accent-color:var(--accent);width:18px;height:18px}
+.sync{font-size:.8rem;padding:0 8px 8px;color:var(--muted)}
+.sync::before{content:"●";margin-right:6px}
+.sync.on{color:var(--ok)}
+.sync.error,.sync.readonly,.sync.slow{color:var(--warn)}
+.split{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}
+.split.two{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+.form{display:flex;flex-direction:column;gap:14px;min-width:0}
+.drawer.wide{width:min(1180px,100%)}
+.sidep{background:var(--surface);border:2px solid var(--accent);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px;position:sticky;top:0;align-self:start;max-height:calc(100vh - 150px);overflow:auto;min-width:0}
+.sidesec{padding:8px 10px;border-radius:8px;background:var(--surface2);display:flex;flex-direction:column;gap:2px}
+.sidesec.hit{outline:2px solid var(--warn);background:var(--warn-soft)}
+.txt{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.95rem}
+.eitem{display:flex;flex-direction:column;gap:2px;text-align:left;width:100%;padding:8px 10px;border:1px solid var(--bad);border-radius:8px;background:var(--surface);color:var(--ink);cursor:pointer}
+.eitem strong{color:var(--bad)}
+.eitem em{color:var(--muted)}
+.flash{outline:3px solid var(--bad);outline-offset:3px;border-radius:10px;animation:fl 1s ease 3}
+@keyframes fl{50%{outline-color:transparent}}
+.erow{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr) auto;gap:14px;align-items:start;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer}
+.erow:hover{border-color:var(--accent)}
+.ebody{min-width:0;display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.ebody p{margin:0;overflow-wrap:anywhere}
+.quote{font-style:italic;color:var(--muted)}
+.eref{min-width:0;display:flex;flex-direction:column;gap:4px;padding:10px;border-radius:8px;background:var(--surface2)}
+.eact{display:flex;flex-direction:column;gap:6px}
+@media (max-width:900px){.split.two{grid-template-columns:minmax(0,1fr)}.sidep{position:static;max-height:none;order:-1}}
+@media (max-width:760px){.erow{grid-template-columns:minmax(0,1fr)}.eact{flex-direction:row;flex-wrap:wrap}}
+@media (max-width:900px){
+  .topbar{display:flex;align-items:center;gap:10px;padding:10px 14px;padding-left:max(14px,env(safe-area-inset-left,0px));background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .topbar b{font:700 1.3rem var(--f-display);letter-spacing:.04em}
+  .app{grid-template-columns:minmax(0,1fr);height:auto;min-height:100%}
+  .side{display:none}
+  .side.open{display:flex;position:fixed;inset:0;z-index:20;width:min(320px,88%);box-shadow:var(--shadow)}
+  .main{overflow:visible}
+  .log time{flex-basis:110px}
+}
+@media (prefers-reduced-motion:no-preference){.card,.btn,.nav{transition:background .12s,border-color .12s}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="layer"></div>
+<script>
+(function(){
+"use strict";
+var $=function(s,e){return (e||document).querySelector(s)};
+function h(tag,props){
+  var e=document.createElement(tag),p=props||{};
+  for(var k in p){var v=p[k];if(v==null||v===false)continue;
+    if(k==="class")e.className=v;
+    else if(k.slice(0,2)==="on")e.addEventListener(k.slice(2),v);
+    else if(k==="checked")e.checked=!!v;
+    else if(k==="disabled")e.disabled=true;
+    else e.setAttribute(k,v===true?"":v);}
+  var kids=Array.prototype.slice.call(arguments,2);
+  (function add(a){a.forEach(function(c){if(c==null||c===false)return;if(Array.isArray(c))return add(c);e.append(c.nodeType?c:document.createTextNode(String(c)))})})(kids);
+  return e;
+}
+function uid(){return Math.random().toString(36).slice(2,9)}
+function now(){return new Date().toISOString()}
+function fmt(d){if(!d)return "—";try{return new Date(d).toLocaleString("fr-FR",{dateStyle:"medium",timeStyle:"short"})}catch(e){return d}}
+function clone(o){return JSON.parse(JSON.stringify(o))}
+
+var TYPES={perso:"Personnage",region:"Fiche",notion:"Notion",draft:"Brouillon"};
+var DRAFT_KINDS=["Personnage","Territoire","Notion","Autre"];
+var PLUR={perso:"Personnages",region:"Territoire",notion:"Notion",draft:"Brouillons"};
+var DEF={perso:["Informations générales","Chaîne de commandement","Rôles","Fonctions","Relations","Équipement"],region:[],notion:["Définition"],draft:["Idée","Détails"]};
+var LISTS=[["espece","Espèces","espèce"],["fonction","Fonctions","fonction"],["affinite","Affinités élémentaires","affinité"],["genre","Genres","genre"]];
+function idTxt(f){return [f.genre,f.age,f.taille,f.date,(f.surnoms||[]).join(" ")].filter(Boolean).join(" ")}
+function idDef(f){delete f.prenom;delete f.nomFamille;f.dateType=f.dateType||"";f.date=f.date||"";f.genre=f.genre||"";f.age=f.age==null?"":String(f.age);f.taille=f.taille==null?"":String(f.taille);f.surnoms=Array.isArray(f.surnoms)?f.surnoms:[]}
+var KEY="dma-v1";
+function affs(f){var a=Array.isArray(f.affinites)?f.affinites:[f.affinite,f.affinite2];var o=[];a.forEach(function(v){if(v&&o.indexOf(v)<0)o.push(v)});return o.slice(0,3)}
+
+/* ---------- données ---------- */
+function sec(t,x){return {id:uid(),title:t,text:x||""}}
+function seed(){
+  var n1="n_a",n2="n_b",c1="f_notion_aff",c2="f_notion_aok";
+  var t=now();
+  function base(o){return Object.assign({nation:"",nations:[],common:false,validated:false,espece:"",fonction:"",affinites:[],refs:[],sections:[],createdAt:t,updatedAt:t,history:[{at:t,text:"Création (exemple)"}],example:true},o)}
+  return {
+    nations:[{id:n1,name:"Nation A",example:true,ord:0},{id:n2,name:"Nation B",example:true,ord:1}],
+    cats:[],catsV:1,subs:{},
+    lists:{espece:["Démon","Humain"],fonction:["Limier"],affinite:["Terre","Feu"],genre:["Homme","Femme","Agenre"]},
+    fiches:[
+      base({id:c1,type:"notion",name:"Affinité élémentaire (exemple)",common:true,validated:true,sections:[sec("Définition","Exemple de notion commune à toutes les nations. Remplace ce texte par ta définition validée.")]}),
+      base({id:c2,type:"notion",name:"Notion propre à la Nation B (exemple)",nations:[n2],validated:false,sections:[sec("Définition","Exemple de notion non cochée. Les fiches qui s'appuient dessus sont signalées en erreur.")]}),
+      base({id:"f_p1",type:"perso",name:"Personnage d'exemple A",nation:n1,espece:"Démon",fonction:"Limier",affinites:["Terre"],refs:[c1],sections:DEF.perso.map(function(x,i){return sec(x,i===0?"Exemple de fiche complète, sans erreur.":"")})}),
+      base({id:"f_p2",type:"perso",name:"Personnage d'exemple B",nation:n2,espece:"Humain",fonction:"Limier",affinites:["Feu"],refs:[c2],sections:DEF.perso.map(function(x){return sec(x,"")})}),
+      base({id:"f_d1",type:"draft",kind:"Personnage",name:"Idée de personnage (exemple)",nation:n1,refs:[],sections:[sec("Idée","Exemple de brouillon sans notion de référence : il est signalé en erreur tant qu'aucune notion n'est choisie."),sec("Détails")]}),
+
+    ],
+    contradictions:[],lastCheck:null,
+    log:[{at:t,text:"Données d'exemple ajoutées",fiche:null}]
+  };
+}
+var memory=null;
+var HAS_CLAUDE=!!(window.claude&&window.claude.use);
+var STORAGE_OK=true;
+try{localStorage.setItem("dma-test","1");localStorage.removeItem("dma-test")}catch(e){STORAGE_OK=false}
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
+function saveBlob(name,text){
+  var b=new Blob([text],{type:"application/json"}),u=URL.createObjectURL(b),a=document.createElement("a");
+  a.href=u;a.download=name;document.body.append(a);a.click();a.remove();
+  setTimeout(function(){URL.revokeObjectURL(u)},4000);
+}
+function backupName(){var d=new Date();return "dma-sauvegarde-"+d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+".json"}
+function load(){
+  var raw=null;
+  try{raw=localStorage.getItem(KEY)}catch(e){}
+  if(!raw&&memory)raw=memory;
+  if(raw){try{return normalize(JSON.parse(raw))}catch(e){}}
+  return seed();
+}
+function normalize(o){
+  if(!o||!Array.isArray(o.nations)||!Array.isArray(o.fiches))throw new Error("format");
+  o.lists=o.lists||{};
+  if(!Array.isArray(o.lists.genre))o.lists.genre=["Homme","Femme","Agenre"];
+  LISTS.forEach(function(l){if(!Array.isArray(o.lists[l[0]]))o.lists[l[0]]=[]});
+  o.contradictions=o.contradictions||[];o.missing=Array.isArray(o.missing)?o.missing:[];o.log=o.log||[];o.lastCheck=o.lastCheck||null;
+  o.nations.forEach(function(n,i){if(n.ord==null)n.ord=i});
+  o.fiches.forEach(function(f){
+    f.nations=f.nations||[];f.refs=f.refs||[];f.sections=f.sections||[];f.history=f.history||[];
+    f.kind=f.kind||"";f.nation=f.nation||"";f.espece=f.espece||"";f.fonction=f.fonction||"";f.affinites=affs(f);delete f.affinite;delete f.affinite2;f.cat=f.cat||"";f.links=Array.isArray(f.links)?f.links:[];f.sousEspece=f.sousEspece||"";f.exception=!!f.exception;idDef(f);f.surnoms=f.surnoms.filter(Boolean);
+  });
+  o.cats=Array.isArray(o.cats)?o.cats:[];
+  if(!o.subs||typeof o.subs!=="object"||Array.isArray(o.subs))o.subs={};
+  if(!o.catsV){var orph=o.fiches.filter(function(f){return f.type==="region"&&!f.cat});if(orph.length){var rc=o.cats.find(function(c){return c.id==="c_region"});if(!rc){rc={id:"c_region",name:"Région",sections:[],ord:0};o.cats.push(rc)}orph.forEach(function(f){f.cat=rc.id})}o.catsV=1}
+  return o;
+}
+var S=load();
+function persist(){var s=JSON.stringify(S);memory=s;try{localStorage.setItem(KEY,s)}catch(e){}schedulePush()}
+function log(text,fiche){S.log.unshift({at:now(),text:text,fiche:fiche||null});if(S.log.length>500)S.log.length=500}
+function nName(id){var n=S.nations.find(function(x){return x.id===id});return n?n.name:"(nation supprimée)"}
+function byId(id){return S.fiches.find(function(f){return f.id===id})}
+function catById(id){return S.cats.find(function(c){return c.id===id})}
+function catName(id){var c=catById(id);return c?c.name:""}
+
+/* ---------- erreurs ---------- */
+function scopeLabel(n){return n.common?"Commune":(n.nations.map(function(i){return nName(i)}).join(", ")||"aucune nation")}
+function applies(n,nat){return n.common||(n.nations||[]).indexOf(nat)>=0}
+function normTxt(t){return String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim()}
+function errorsFor(fiches,withContra){
+  var out=[];
+  function add(f,kind,label,msg,extra){out.push(Object.assign({fiche:f?f.id:null,kind:kind,label:label,msg:msg,field:null,related:null},extra||{}))}
+  var natOk=function(id){return S.nations.some(function(n){return n.id===id})};
+  var seen={};
+  fiches.forEach(function(f){var k=f.type+"|"+(f.type==="notion"?"":f.nation)+"|"+(f.type==="region"?f.cat:"")+"|"+(f.name||"").trim().toLowerCase();if(!(f.name||"").trim())return;(seen[k]=seen[k]||[]).push(f)});
+  Object.keys(seen).forEach(function(k){if(seen[k].length>1)seen[k].forEach(function(f){
+    var o=seen[k].find(function(x){return x.id!==f.id});
+    add(f,"structure","Nom en double","Une autre fiche porte déjà ce nom. Deux fiches du même type ne peuvent pas avoir le même nom"+(f.type==="notion"?"":" dans une même nation")+".",{field:"name",related:{id:o.id,note:"Cette fiche porte le même nom."}});
+  })});
+  fiches.forEach(function(f){
+    if(!(f.name||"").trim())add(f,"structure","Nom manquant","La fiche n'a pas de nom.",{field:"name"});
+    if(f.type==="notion"){
+      if(!f.validated)add(f,"non","Notion non cochée","Cette notion n'est pas cochée comme validée. Tant qu'elle ne l'est pas, elle compte comme une erreur et ne peut pas servir de référence.",{field:"validated"});
+      if(!f.common){
+        if(f.nations.length>1)add(f,"structure","Portée trop large","Une notion propre ne s'applique qu'à une seule nation, et celle-ci en a "+f.nations.length+". Choisis une seule nation ou rends la notion commune.",{field:"scope"});
+        if(!f.nations.length)add(f,"structure","Portée incomplète","Cette notion n'est ni commune ni rattachée à une nation. Choisis « Commune » ou la nation concernée.",{field:"scope"});
+        f.nations.forEach(function(id){if(!natOk(id))add(f,"structure","Nation supprimée","Cette notion est rattachée à une nation qui n'existe plus. Retire-la de la portée.",{field:"scope"})});
+      }
+    }else{
+      if(!f.nation){if(f.type!=="draft")add(f,"structure","Nation manquante","Aucune nation n'est choisie pour cette fiche.",{field:"nation"})}
+      else if(!natOk(f.nation))add(f,"structure","Nation supprimée","Cette fiche est rattachée à une nation qui n'existe plus. Choisis une autre nation.",{field:"nation"});
+      if(f.type==="region"&&!catById(f.cat))add(f,"structure","Catégorie manquante",f.cat?"Cette fiche est rattachée à une catégorie qui n'existe plus. Choisis une autre catégorie.":"Aucune catégorie n'est choisie pour cette fiche.",{field:"cat"});
+      if(f.type==="perso"&&f.sousEspece&&(S.subs[f.espece]||[]).indexOf(f.sousEspece)<0)add(f,"structure","Sous-espèce absente de la liste","« "+f.sousEspece+" » n'existe pas parmi les sous-espèces de « "+(f.espece||"aucune espèce")+" ». Ajoute-la dans Listes ou choisis une autre valeur.",{field:"sousEspece"});
+      if(f.type==="perso"){
+        affs(f).forEach(function(v){if(S.lists.affinite.indexOf(v)<0)add(f,"structure","Valeur absente de la liste","« "+v+" » n'existe pas dans la liste des affinités élémentaires. Ajoute-la à la liste ou choisis une autre valeur.",{field:"affinite"})});
+        if(affs(f).length>1&&!f.exception)add(f,"structure","Plusieurs affinités sans exception","Ce personnage a "+affs(f).length+" affinités élémentaires, mais la case « Exception » n'est pas cochée. Coche-la ou garde une seule affinité.",{field:"exception"});
+        LISTS.forEach(function(l){
+          if(l[0]==="affinite")return;
+          var v=f[l[0]];
+          if(!v&&l[0]==="genre")return;
+          if(!v)add(f,"structure","Champ non renseigné","Le champ « "+l[2]+" » est vide. Il sert à trier les personnages.",{field:l[0]});
+          else if(S.lists[l[0]].indexOf(v)<0)add(f,"structure","Valeur absente de la liste","« "+v+" » n'existe pas dans la liste des "+l[1].toLowerCase()+". Ajoute-la à la liste ou choisis une autre valeur.",{field:l[0]});
+        });
+      }
+      var nat=f.nation,appl=fiches.filter(function(n){return n.type==="notion"&&n.id!==f.id&&(nat?applies(n,nat):n.common)});
+      var txt=normTxt([f.name].concat(f.sections.map(function(x){return x.title+" "+x.text})).join(" \n "));
+      appl.forEach(function(n){
+        if(n.validated)return;
+        var nn=normTxt((n.name||"").replace(/\(.*?\)/g,""));if(nn.length<3)return;
+        if(new RegExp("(^|[^a-z0-9])"+nn.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(s|x)?([^a-z0-9]|$)").test(txt))
+          add(f,"non","Notion non validée","Cette fiche parle de la notion « "+n.name+" », qui n'est pas cochée comme validée. Valide la notion pour que la fiche le soit aussi.",{related:{id:n.id,note:"Cette notion s'applique automatiquement à la fiche."}});
+      });
+    }
+  });
+  if(withContra!==false)(S.missing||[]).forEach(function(m){
+    var f=fiches.find(function(x){return x.id===m.fiche});if(!f)return;
+    var fs=m.section?f.sections.find(function(x){return x.title===m.section}):null;
+    add(f,"non","Notion inexistante",m.msg||("Le concept « "+m.concept+" » n'a aucune notion."),{cid:m.id,field:fs?"sec:"+fs.id:null,extrait:m.extrait||"",kindMissing:true});
+  });
+  if(withContra!==false)(S.contradictions||[]).forEach(function(c){
+    var f=byId(c.fiches[0]);if(!f)return;
+    var others=c.fiches.slice(1).map(byId).filter(Boolean);
+    var rel=others.find(function(o){return o.type==="notion"})||others[0]||null;
+    var fs=c.section?f.sections.find(function(s){return s.title===c.section}):null;
+    var label=rel&&rel.type==="notion"?"Règle non respectée : contradiction avec la notion « "+rel.name+" »":(rel?"Contradiction entre « "+f.name+" » et « "+rel.name+" »":"Contradiction");
+    add(f,"contra",label,c.msg,{cid:c.id,field:fs?"sec:"+fs.id:null,extrait:c.extrait||"",related:rel?{id:rel.id,section:c.relSection||"",note:rel.type==="notion"?"La fiche ne respecte pas cette notion validée.":"Les deux fiches se contredisent."}:null});
+  });
+  return out;
+}
+var ERR=[],ERRBY={};
+function recompute(){ERR=errorsFor(S.fiches);ERRBY={};ERR.forEach(function(e){if(e.fiche)ERRBY[e.fiche]=(ERRBY[e.fiche]||0)+1})}
+
+/* ---------- état d'interface ---------- */
+var V={ls:null,le:null,ld:null,leMsg:"",page:"browse",nation:"all",tab:"perso",menu:false,
+  f:{q:"",espece:"",fonction:"",affinite:"",nation:"",group:"none",cat:"",sous:""},
+  confirmNation:false,newNation:"",pendingImport:null,msg:"",checking:false,errKind:"all"};
+var E=null; // éditeur
+var SAMPLE=null,DL=null;
+
+function commit(){persist();render()}
+
+/* ---------- rendu général ---------- */
+function render(){
+  recompute();
+  var root=$("#root");
+  var st=$(".main")?$(".main").scrollTop:0;
+  var sd=$(".side")?$(".side").scrollTop:0;
+  root.replaceChildren(
+    h("div",{class:"topbar"},h("button",{class:"btn sm",type:"button",onclick:function(){V.menu=!V.menu;render()}},"☰ Menu"),h("b",null,HAS_CLAUDE?"DMA":"DMA autonome"),ERR.length?h("span",{class:"badge"},ERR.length):null),
+    h("div",{class:"app"},side(),main())
+  );
+  $(".main").scrollTop=st;$(".side").scrollTop=sd;
+}
+function go(page,nation){V.page=page;if(nation)V.nation=nation;V.menu=false;V.confirmNation=false;V.msg="";render();var m=$(".main");if(m)m.scrollTop=0}
+
+function side(){
+  var s=h("nav",{class:"side"+(V.menu?" open":""),"aria-label":"Navigation"});
+  s.append(h("div",{class:"brand"},HAS_CLAUDE?"DMA":"DMA autonome",h("small",null,"Univers · Fiches · Notions · v27")));
+  s.append(h("div",{id:"syncst",class:"sync "+SYNC.status},statusText()));
+  s.append(h("div",{id:"syncbtn",class:"addrow",style:"padding:0 2px 8px",hidden:(!HAS_CLAUDE||SYNC.status==="on"||SYNC.status==="saving")},h("button",{class:"btn sm",type:"button",onclick:function(){connect()}},"Réessayer"),h("button",{class:"btn sm",type:"button",onclick:openPerms},"Autorisations")));
+  s.append(h("div",{class:"navlabel"},"Nations"));
+  function navBtn(label,cnt,cur,fn,badge){return h("button",{class:"nav",type:"button","aria-current":cur?"true":"false",onclick:fn},h("span",null,label),badge?h("span",{class:"badge"},badge):(cnt!=null?h("span",{class:"count"},cnt):null))}
+  s.append(navBtn("Toutes les nations",S.nations.length,V.page==="browse"&&V.nation==="all",function(){go("browse","all")}));
+  S.nations.forEach(function(n){
+    var c=S.fiches.filter(function(f){return f.type==="perso"&&f.nation===n.id}).length;
+    s.append(navBtn(n.name||"Sans nom",c,V.page==="browse"&&V.nation===n.id,function(){go("browse",n.id)}));
+  });
+  var inp=h("input",{type:"text",id:"newnation",placeholder:"Nouvelle nation",value:V.newNation,"aria-label":"Nom de la nouvelle nation",oninput:function(e){V.newNation=e.target.value},onkeydown:function(e){if(e.key==="Enter")addNation()}});
+  inp.value=V.newNation;
+  s.append(h("div",{class:"addrow"},inp,h("button",{class:"btn sm primary",type:"button",onclick:addNation},"Ajouter")));
+  s.append(h("div",{class:"navlabel"},"Outils"));
+  s.append(navBtn("Territoire",S.fiches.filter(function(f){return f.type==="region"}).length,V.page==="terr",function(){V.cat=null;go("terr")}));
+  s.append(navBtn("Brouillons",S.fiches.filter(function(f){return f.type==="draft"}).length,V.page==="drafts",function(){go("drafts")}));
+  s.append(navBtn("Erreurs",null,V.page==="errors",function(){go("errors")},ERR.length||null));
+  s.append(navBtn("Listes (espèces…)",null,V.page==="lists",function(){go("lists")}));
+  s.append(navBtn("Historique",null,V.page==="history",function(){go("history")}));
+  s.append(navBtn("Sauvegarde",null,V.page==="backup",function(){go("backup")}));
+  return s;
+}
+function addNation(){
+  var name=(V.newNation||"").trim();if(!name)return;
+  var n={id:uid(),name:name,ord:Date.now()};S.nations.push(n);log("Nation créée : "+name);V.newNation="";V.nation=n.id;V.page="browse";V.menu=false;commit();
+}
+
+function main(){
+  var m=h("main",{class:"main"});
+  var mi=h("div",{class:"mi"});
+  m.append(mi);
+  if(!STORAGE_OK)mi.append(h("div",{class:"note"},h("span",null,"Ce navigateur n'enregistre pas les données de la page : tes fiches disparaîtront à la fermeture. Télécharge souvent la sauvegarde dans la page Sauvegarde.")));
+  if(V.syncNote)mi.append(h("div",{class:"note info"},h("span",null,V.syncNote),h("button",{class:"btn sm",type:"button",onclick:function(){V.syncNote="";render()}},"OK")));
+  if(S.fiches.some(function(f){return f.example})&&V.page==="browse"){
+    mi.append(h("div",{class:"note"},h("span",null,"Les nations et fiches marquées « exemple » servent à montrer le fonctionnement. Supprime-les quand tu veux commencer."),h("button",{class:"btn sm",type:"button",onclick:removeExamples},"Supprimer les exemples")));
+  }
+  if(V.page==="browse")browse(mi);
+  else if(V.page==="terr")territoirePage(mi);
+  else if(V.page==="drafts")draftsPage(mi);
+  else if(V.page==="errors")errorsPage(mi);
+  else if(V.page==="lists")listsPage(mi);
+  else if(V.page==="history")historyPage(mi);
+  else backupPage(mi);
+  return m;
+}
+function removeExamples(){
+  S.noExamples=true;
+  var usedNat={};
+  S.fiches=S.fiches.filter(function(f){return !f.example});
+  S.fiches.forEach(function(f){if(f.nation)usedNat[f.nation]=1;(f.nations||[]).forEach(function(i){usedNat[i]=1})});
+  S.nations=S.nations.filter(function(n){if(n.example&&!usedNat[n.id])return false;delete n.example;return true});
+  if(V.nation!=="all"&&!S.nations.some(function(n){return n.id===V.nation}))V.nation="all";
+  log("Exemples supprimés");commit();
+}
+
+/* ---------- navigation par nation ---------- */
+function browse(mi){
+  var all=V.nation==="all";
+  var nat=all?null:S.nations.find(function(n){return n.id===V.nation});
+  if(!all&&!nat){V.nation="all";return browse(mi)}
+  var head=h("div",{class:"head"});
+  if(all)head.append(h("h1",null,"Toutes les nations"));
+  else{
+    var ni=h("input",{class:"namein",type:"text",id:"nationname","aria-label":"Nom de la nation",value:nat.name,onchange:function(e){
+      var v=e.target.value.trim();if(!v){e.target.value=nat.name;return}
+      if(v!==nat.name){log("Nation renommée : « "+nat.name+" » → « "+v+" »");nat.name=v;commit()}}});
+    ni.value=nat.name;
+    head.append(ni);
+    if(!V.confirmNation)head.append(h("button",{class:"btn sm danger",type:"button",onclick:function(){V.confirmNation=true;render()}},"Supprimer la nation"));
+    else head.append(h("span",{class:"note"},"Les fiches de cette nation resteront, signalées en erreur.",
+      h("button",{class:"btn sm danger",type:"button",onclick:function(){log("Nation supprimée : "+nat.name);S.nations=S.nations.filter(function(n){return n.id!==nat.id});V.nation="all";V.confirmNation=false;commit()}},"Confirmer"),
+      h("button",{class:"btn sm",type:"button",onclick:function(){V.confirmNation=false;render()}},"Annuler")));
+  }
+  mi.append(head);
+  var tabs=h("div",{class:"tabs",role:"tablist"});
+  ["perso","region","notion"].forEach(function(t){
+    var c=listFor(t).length;
+    tabs.append(h("button",{class:"tab",type:"button",role:"tab","aria-selected":V.tab===t?"true":"false",onclick:function(){V.tab=t;render()}},PLUR[t]+" ("+c+")"));
+  });
+  mi.append(tabs);
+  var holder=h("div");
+  var top=h("div",{class:"bar"});
+  if(V.tab==="perso"){
+    var fill=function(){fillList(holder)};
+    var q=h("input",{type:"search",id:"q",placeholder:"Rechercher un personnage",value:V.f.q,"aria-label":"Rechercher",style:"flex:1 1 200px",oninput:function(e){V.f.q=e.target.value;fill()}});
+    q.value=V.f.q;
+    top.append(q);
+    function sel(key,label,opts){
+      var s=h("select",{id:"f_"+key,"aria-label":label,onchange:function(e){V.f[key]=e.target.value;fill()}},h("option",{value:""},label+" : toutes"));
+      opts.forEach(function(o){s.append(h("option",{value:o[0]},o[1]))});
+      s.value=V.f[key];if(s.value!==V.f[key]){V.f[key]="";s.value=""}return s;
+    }
+    if(all){var ns=sel("nation","Nation",S.nations.map(function(n){return [n.id,n.name]}));ns.onchange=function(e){V.f.nation=e.target.value;render()};top.append(ns)}
+    var scopeN=all?V.f.nation:V.nation;
+    function used(key){
+      var c={};
+      S.fiches.forEach(function(f){if(f.type==="perso"&&(!scopeN||f.nation===scopeN)){var v=f[key];if(v)c[v]=(c[v]||0)+1}});
+      return c}
+    LISTS.forEach(function(l){
+      var k=l[0],opts;
+      if(k==="affinite")opts=S.lists[k].map(function(v){return [v,v]});
+      else{var c=used(k);
+        opts=Object.keys(c).sort(function(a,b){return a.localeCompare(b,"fr")}).map(function(v){return [v,v+" ("+c[v]+")"]});
+        if(V.f[k]&&!c[V.f[k]])V.f[k]=""}
+      var ss=sel(k,l[2][0].toUpperCase()+l[2].slice(1),opts);
+      if(k==="espece")ss.addEventListener("change",function(e){V.f.sous="";render()});
+      top.append(ss);
+      if(k==="espece"&&V.f.espece&&(S.subs[V.f.espece]||[]).length){
+        var sc={};S.fiches.forEach(function(f){if(f.type==="perso"&&f.espece===V.f.espece&&(!scopeN||f.nation===scopeN)&&f.sousEspece)sc[f.sousEspece]=(sc[f.sousEspece]||0)+1});
+        top.append(sel("sous","Sous-espèce",S.subs[V.f.espece].map(function(v){return [v,v+" ("+(sc[v]||0)+")"]})));
+      }});
+    var g=h("select",{id:"f_group","aria-label":"Grouper par",onchange:function(e){V.f.group=e.target.value;fill()}},
+      [["none","Sans groupe"],["nation","Grouper par nation"],["espece","Grouper par espèce"],["fonction","Grouper par fonction"],["affinite","Grouper par affinité"]].map(function(o){return h("option",{value:o[0]},o[1])}));
+    g.value=V.f.group;top.append(g);
+  }
+  if(V.tab==="region"){
+    var cc=h("select",{id:"f_cat","aria-label":"Catégorie",onchange:function(e){V.f.cat=e.target.value;fillList(holder)}},h("option",{value:""},"Catégorie : toutes"));
+    S.cats.forEach(function(c){cc.append(h("option",{value:c.id},c.name))});
+    cc.value=V.f.cat;if(cc.value!==V.f.cat){V.f.cat="";cc.value=""}
+    top.append(cc);
+  }
+  top.append(h("button",{class:"btn primary",type:"button",style:"margin-left:auto",onclick:function(){openEditor(null,V.tab,V.tab==="region"&&V.f.cat?{cat:V.f.cat}:null)}},"+ Nouvelle "+(V.tab==="perso"?"fiche de personnage":V.tab==="region"?"fiche":"notion")));
+  mi.append(top,holder);
+  fillList(holder);
+}
+function listFor(t){
+  return S.fiches.filter(function(f){
+    if(f.type!==t)return false;
+    if(V.nation==="all")return true;
+    if(t==="notion")return applies(f,V.nation);
+    return f.nation===V.nation;
+  }).sort(function(a,b){return (a.name||"").localeCompare(b.name||"","fr")});
+}
+function fillList(holder){
+  var items=listFor(V.tab);
+  if(V.tab==="perso"){
+    var q=V.f.q.trim().toLowerCase();
+    items=items.filter(function(f){
+      if(q&&((f.name||"")+" "+idTxt(f)+" "+f.sections.map(function(s){return s.text}).join(" ")).toLowerCase().indexOf(q)<0)return false;
+      if(V.f.espece&&f.espece!==V.f.espece)return false;
+      if(V.f.sous&&V.f.espece&&f.sousEspece!==V.f.sous)return false;
+      if(V.f.fonction&&f.fonction!==V.f.fonction)return false;
+      if(V.f.affinite&&affs(f).indexOf(V.f.affinite)<0)return false;
+      if(V.nation==="all"&&V.f.nation&&f.nation!==V.f.nation)return false;
+      return true;
+    });
+  }
+  if(V.tab==="region"&&V.f.cat)items=items.filter(function(f){return f.cat===V.f.cat});
+  holder.replaceChildren();
+  if(!items.length){holder.append(h("div",{class:"empty"},V.tab==="perso"?"Aucun personnage à afficher. Ajoute une fiche ou assouplis les filtres.":V.tab==="region"?"Aucune fiche de territoire pour l'instant.":"Aucune notion pour l'instant."));return}
+  var showNat=V.nation==="all";
+  if(V.tab==="notion"){
+    var com=items.filter(function(n){return n.common}),own=items.filter(function(n){return !n.common});
+    if(showNat){
+      if(com.length)holder.append(grp("Communes à toutes les nations",com,false));
+      var byN={};own.forEach(function(f){var k=f.nations[0]||"";(byN[k]=byN[k]||[]).push(f)});
+      Object.keys(byN).sort(function(x,y){return (x?nName(x):"~").localeCompare(y?nName(y):"~","fr")}).forEach(function(k){holder.append(grp("Propres à "+(k?nName(k):"aucune nation"),byN[k],false))});
+    }else{
+      if(own.length)holder.append(grp("Propres à cette nation",own,false));
+      if(com.length)holder.append(grp("Communes à toutes les nations",com,false));
+    }
+    return;
+  }
+  if(V.tab==="perso"&&V.f.group==="none"&&V.f.espece&&!V.f.sous&&(S.subs[V.f.espece]||[]).length){
+    var sl=S.subs[V.f.espece].slice(),gm={};
+    items.forEach(function(f){var k=sl.indexOf(f.sousEspece)>=0?f.sousEspece:"";(gm[k]=gm[k]||[]).push(f)});
+    sl.concat([""]).forEach(function(k){
+      var gl=gm[k]||[];if(!k&&!gl.length)return;
+      var g=h("div",{class:"group"});
+      g.append(h("h3",null,k?h("button",{class:"btn sm",type:"button",title:"Voir seulement cette sous-espèce",onclick:function(){V.f.sous=k;render()}},k):"Sans sous-espèce",h("span",{class:"count"},gl.length)));
+      g.append(gl.length?h("div",{class:"grid"},gl.map(function(f){return card(f,showNat)})):h("div",{class:"meta"},"Aucun personnage."));
+      holder.append(g)});
+    return;
+  }
+  if(V.tab==="perso"&&V.f.group!=="none"){
+    var key=V.f.group,groups={};
+    items.forEach(function(f){if(key==="affinite"){var aa=affs(f);(aa.length?aa:[""]).forEach(function(k){(groups[k]=groups[k]||[]).push(f)});return}var k=key==="nation"?(f.nation?nName(f.nation):""):f[key];(groups[k||""]=groups[k||""]||[]).push(f)});
+    Object.keys(groups).sort(function(a,b){if(!a)return 1;if(!b)return -1;return a.localeCompare(b,"fr")}).forEach(function(k){holder.append(grp(k||"Non renseigné",groups[k],showNat&&key!=="nation"))});
+    return;
+  }
+  if(V.tab==="region"&&!V.f.cat){groupByCat(holder,items,showNat);return}
+  holder.append(grp(null,items,showNat));
+}
+function grp(title,items,showNat){
+  var g=h("div",{class:"group"});
+  if(title)g.append(h("h3",null,title,h("span",{class:"count"},items.length)));
+  g.append(h("div",{class:"grid"},items.map(function(f){return card(f,showNat)})));
+  return g;
+}
+function card(f,showNat){
+  var ec=ERRBY[f.id]||0;
+  var chips=h("div",{class:"chips"});
+  if(f.type==="draft"){if(f.kind)chips.append(h("span",{class:"chip acc"},f.kind));chips.append(h("span",{class:"chip"},f.nation?nName(f.nation):"Sans nation"))}
+  if(f.type==="region"){chips.append(h("span",{class:"chip acc"},catName(f.cat)||"Sans catégorie"));var nl=(f.links||[]).filter(function(i){return byId(i)}).length;if(nl)chips.append(h("span",{class:"chip"},nl+(nl>1?" liens":" lien")))}
+  if(f.type==="perso"){[f.espece].concat(f.sousEspece?[f.sousEspece]:[]).concat([f.fonction]).concat(affs(f)).forEach(function(v,i,a){if(v)chips.append(h("span",{class:"chip"+(i>=a.length-affs(f).length?" acc":"")},v))})}
+  if(f.type==="notion"){
+    chips.append(f.validated?h("span",{class:"pill ok"},"✓ Validée"):h("span",{class:"pill warn"},"Non validée"));
+    chips.append(h("span",{class:"chip"+(f.common?" acc":"")},f.common?"Commune":"Propre à : "+scopeLabel(f)));
+  }
+  if(f.type==="perso"&&!affs(f).length)chips.append(h("span",{class:"pill warn",title:"Aucune affinité élémentaire renseignée"},"Incomplet"));
+  var ex=f.sections.map(function(s){return s.text}).filter(Boolean)[0]||"";
+  return h("button",{class:"card",type:"button",onclick:function(){openEditor(f.id)}},
+    h("div",{class:"card-top"},h("strong",{class:"card-name"},f.name||"Sans nom"),ec?h("span",{class:"pill bad"},ec+(ec>1?" erreurs":" erreur")):null),
+    chips,
+    f.type!=="notion"&&f.type!=="draft"&&showNat?h("span",{class:"meta"},"Nation : "+(f.nation?nName(f.nation):"—")):null,
+    ex&&f.type!=="perso"?h("span",{class:"excerpt"},ex.length>130?ex.slice(0,130)+"…":ex):null,
+    f.type==="perso"&&(f.age||f.taille||f.date||(f.surnoms||[]).length)?h("span",{class:"meta"},[f.age?"Âge : "+f.age:"",f.taille?f.taille+" cm":"",f.date?(f.dateType==="Anniversaire"?"Anniversaire : ":"Naissance : ")+f.date:"",(f.surnoms||[]).length?"« "+f.surnoms.join(" », « ")+" »":""].filter(Boolean).join(" · ")):null,
+    h("span",{class:"meta"},"Modifiée le "+fmt(f.updatedAt)));
+}
+
+/* ---------- territoire ---------- */
+function groupByCat(holder,items,showNat){
+  var gg={};items.forEach(function(f){var k=catName(f.cat)||"";(gg[k]=gg[k]||[]).push(f)});
+  Object.keys(gg).sort(function(a,b){if(!a)return 1;if(!b)return -1;return a.localeCompare(b,"fr")}).forEach(function(k){holder.append(grp(k||"Sans catégorie",gg[k],showNat))});
+}
+function regionsOf(id,nat){
+  return S.fiches.filter(function(f){
+    if(f.type!=="region")return false;
+    if(id==="none"){if(catById(f.cat))return false}else if(id!=="*"&&f.cat!==id)return false;
+    return !nat||f.nation===nat;
+  }).sort(function(a,b){return (a.name||"").localeCompare(b.name||"","fr")});
+}
+function territoirePage(mi){
+  V.t=V.t||{q:"",nation:""};
+  if(V.cat&&V.cat!=="*"&&V.cat!=="none"&&!catById(V.cat))V.cat=null;
+  if(V.cat)catView(mi);else catOverview(mi);
+}
+function catOverview(mi){
+  mi.append(h("div",{class:"head"},h("h1",null,"Territoire")));
+  mi.append(h("span",{class:"meta"},"Crée tes propres catégories de fiches. Touche une catégorie pour voir ses fiches, toutes nations confondues."));
+  var ni=h("input",{type:"text",id:"newcat",placeholder:"Nouvelle catégorie","aria-label":"Nom de la nouvelle catégorie",style:"flex:1 1 200px",onkeydown:function(e){if(e.key==="Enter")add()}});
+  function add(){
+    var v=ni.value.trim();if(!v)return;
+    var ex=S.cats.find(function(c){return c.name.toLowerCase()===v.toLowerCase()});
+    if(ex){V.cat=ex.id;render();return}
+    var c={id:uid(),name:v,sections:[],ord:Date.now()};S.cats.push(c);log("Catégorie créée : "+v);V.cat=c.id;commit();
+  }
+  mi.append(h("div",{class:"bar"},ni,h("button",{class:"btn primary",type:"button",onclick:add},"Ajouter la catégorie")));
+  var g=h("div",{class:"grid"});
+  function tile(id,name,list){
+    var nats={};list.forEach(function(f){if(f.nation)nats[f.nation]=1});
+    var chips=h("div",{class:"chips"});
+    Object.keys(nats).forEach(function(n){chips.append(h("span",{class:"chip"},nName(n)))});
+    g.append(h("button",{class:"card",type:"button",onclick:function(){V.cat=id;V.t.nation="";render()}},
+      h("div",{class:"card-top"},h("strong",{class:"card-name"},name),h("span",{class:"count"},list.length)),chips));
+  }
+  tile("*","Toutes les fiches",regionsOf("*"));
+  S.cats.slice().sort(function(a,b){return (a.ord||0)-(b.ord||0)}).forEach(function(c){tile(c.id,c.name,regionsOf(c.id))});
+  var orph=regionsOf("none");if(orph.length)tile("none","Sans catégorie",orph);
+  mi.append(g);
+  if(!S.cats.length)mi.append(h("div",{class:"empty"},"Aucune catégorie pour l'instant. Écris un nom ci-dessus pour créer la première."));
+}
+function catView(mi){
+  var id=V.cat,cat=catById(id);
+  mi.append(h("div",{class:"head"},h("button",{class:"btn sm",type:"button",onclick:function(){V.cat=null;V.confirmCat=false;render()}},"← Territoire"),
+    h("h1",null,cat?cat.name:(id==="*"?"Toutes les fiches":"Sans catégorie"))));
+  if(cat){
+    var ed=h("div",{class:"panel"});
+    ed.append(h("h2",{style:"font-size:1.05rem"},"Modifier cette catégorie"));
+    var ni=h("input",{type:"text",id:"catname","aria-label":"Nom de la catégorie",style:"flex:1 1 200px"});ni.value=cat.name;
+    function rename(){
+      var v=ni.value.trim();if(!v||v===cat.name)return;
+      log("Catégorie renommée : « "+cat.name+" » → « "+v+" »");cat.name=v;commit();
+    }
+    ni.addEventListener("keydown",function(e){if(e.key==="Enter")rename()});
+    ed.append(h("div",{class:"field"},h("label",{for:"catname"},"Nom"),h("div",{class:"bar"},ni,h("button",{class:"btn primary",type:"button",onclick:rename},"Renommer"))));
+    var ta=h("textarea",{id:"catsec","aria-label":"Sections de départ",placeholder:"Un titre par ligne",style:"min-height:90px"});
+    ta.value=cat.sections.join("\n");
+    function saveSec(){
+      cat.sections=ta.value.split("\n").map(function(x){return x.trim()}).filter(Boolean);
+      log("Catégorie « "+cat.name+" » : sections de départ modifiées");commit();
+    }
+    ed.append(h("div",{class:"field"},h("label",{for:"catsec"},"Sections de départ"),
+      h("span",{class:"meta"},"Chaque nouvelle fiche de cette catégorie commence avec ces sections. Écris un titre par ligne."),ta,
+      h("div",null,h("button",{class:"btn primary",type:"button",onclick:saveSec},"Enregistrer les sections"))));
+    if(!V.confirmCat)ed.append(h("div",null,h("button",{class:"btn sm danger",type:"button",onclick:function(){V.confirmCat=true;render()}},"Supprimer la catégorie")));
+    else ed.append(h("div",{class:"note"},"Les fiches de cette catégorie resteront, signalées en erreur.",
+      h("button",{class:"btn sm danger",type:"button",onclick:function(){log("Catégorie supprimée : "+cat.name);S.cats=S.cats.filter(function(c){return c.id!==cat.id});V.cat=null;V.confirmCat=false;commit()}},"Confirmer"),
+      h("button",{class:"btn sm",type:"button",onclick:function(){V.confirmCat=false;render()}},"Annuler")));
+    mi.append(ed);
+  }
+  var holder=h("div"),top=h("div",{class:"bar"});
+  function fill(){
+    var q=V.t.q.trim().toLowerCase();
+    var items=regionsOf(id,V.t.nation).filter(function(f){return !q||((f.name||"")+" "+f.sections.map(function(s){return s.text}).join(" ")).toLowerCase().indexOf(q)>=0});
+    holder.replaceChildren();
+    if(!items.length){holder.append(h("div",{class:"empty"},"Aucune fiche à afficher."));return}
+    if(id==="*")groupByCat(holder,items,true);else holder.append(grp(null,items,true));
+  }
+  var q=h("input",{type:"search",id:"tq",placeholder:"Rechercher une fiche","aria-label":"Rechercher",style:"flex:1 1 200px",oninput:function(e){V.t.q=e.target.value;fill()}});q.value=V.t.q;
+  var ns=h("select",{id:"tnation","aria-label":"Nation",onchange:function(e){V.t.nation=e.target.value;fill()}},h("option",{value:""},"Nation : toutes"));
+  S.nations.forEach(function(n){ns.append(h("option",{value:n.id},n.name))});ns.value=V.t.nation;
+  top.append(q,ns,h("button",{class:"btn primary",type:"button",style:"margin-left:auto",onclick:function(){openEditor(null,"region",{cat:cat?cat.id:"",nation:V.t.nation})}},"+ Nouvelle fiche"));
+  mi.append(top,holder);fill();
+}
+
+/* ---------- brouillons ---------- */
+function draftsPage(mi){
+  V.d=V.d||{q:"",kind:"",nation:""};
+  mi.append(h("div",{class:"head"},h("h1",null,"Brouillons")));
+  mi.append(h("span",{class:"meta"},"Tes idées et brouillons, en dehors des fiches et des notions. Ils passent par la vérification des erreurs : ils sont vérifiés automatiquement contre les notions communes et celles de leur nation."));
+  var holder=h("div"),top=h("div",{class:"bar"});
+  var fill=function(){fillDrafts(holder)};
+  var q=h("input",{type:"search",id:"dq",placeholder:"Rechercher un brouillon",value:V.d.q,"aria-label":"Rechercher",style:"flex:1 1 200px",oninput:function(e){V.d.q=e.target.value;fill()}});q.value=V.d.q;
+  var ks=h("select",{id:"dkind","aria-label":"Type de brouillon",onchange:function(e){V.d.kind=e.target.value;fill()}},h("option",{value:""},"Type : tous"));
+  DRAFT_KINDS.forEach(function(k){ks.append(h("option",{value:k},k))});ks.value=V.d.kind;
+  var ns=h("select",{id:"dnation","aria-label":"Nation",onchange:function(e){V.d.nation=e.target.value;fill()}},h("option",{value:""},"Nation : toutes"),h("option",{value:"none"},"Sans nation"));
+  S.nations.forEach(function(n){ns.append(h("option",{value:n.id},n.name))});ns.value=V.d.nation;
+  top.append(q,ks,ns,h("button",{class:"btn primary",type:"button",style:"margin-left:auto",onclick:function(){openEditor(null,"draft")}},"+ Nouveau brouillon"));
+  mi.append(top,holder);fill();
+}
+function fillDrafts(holder){
+  var D=V.d,q=D.q.trim().toLowerCase();
+  var items=S.fiches.filter(function(f){
+    if(f.type!=="draft")return false;
+    if(q&&((f.name||"")+" "+idTxt(f)+" "+f.sections.map(function(x){return x.text}).join(" ")).toLowerCase().indexOf(q)<0)return false;
+    if(D.kind&&f.kind!==D.kind)return false;
+    if(D.nation==="none"){if(f.nation)return false}else if(D.nation&&f.nation!==D.nation)return false;
+    return true;
+  }).sort(function(a,b){return (b.updatedAt||"").localeCompare(a.updatedAt||"")});
+  holder.replaceChildren();
+  if(!items.length){holder.append(h("div",{class:"empty"},"Aucun brouillon à afficher. Touche « Nouveau brouillon » pour noter une idée."));return}
+  holder.append(h("div",{class:"grid"},items.map(function(f){return card(f,true)})));
+}
+
+/* ---------- page erreurs ---------- */
+var KINDS={non:["Information non validée","warn"],contra:["Contradiction","bad"],structure:["Incohérence de structure","bad"]};
+var FLAB={exception:"Case Exception",sousEspece:"Champ sous-espèce",name:"Nom",nation:"Nation",validated:"Case de validation",scope:"Portée de la notion",refs:"Notions de référence",espece:"Champ espèce",fonction:"Champ fonction",affinite:"Champ affinité",affinite2:"Champ 2e affinité"};
+function where(e,f){
+  if(!e.field)return "Fiche entière";
+  if(e.field.indexOf("sec:")===0){var s=f&&f.sections.find(function(x){return x.id===e.field.slice(4)});return "Section « "+(s?s.title:"?")+" »"}
+  return FLAB[e.field]||"Fiche";
+}
+function relExcerpt(rel){
+  var r=byId(rel.id);if(!r)return "";
+  var s=rel.section?r.sections.find(function(x){return x.title===rel.section}):null;
+  var t=(s&&s.text)||r.sections.map(function(x){return x.text}).filter(Boolean)[0]||"";
+  return t.length>180?t.slice(0,180)+"…":t;
+}
+function openError(e){openEditor(e.fiche,null,{field:e.field,side:e.related})}
+function errorsPage(mi){
+  mi.append(h("div",{class:"head"},h("h1",null,"Erreurs")));
+  var cnt={non:0,contra:0,structure:0};ERR.forEach(function(e){cnt[e.kind]++});
+  mi.append(h("div",{class:"tiles"},Object.keys(KINDS).map(function(k){
+    return h("button",{class:"tile",type:"button",style:"text-align:left;cursor:pointer"+(V.errKind===k?";border-color:var(--accent)":""),onclick:function(){V.errKind=V.errKind===k?"all":k;render()}},h("b",null,cnt[k]),KINDS[k][0]);
+  })));
+  var bar=h("div",{class:"panel"});
+  bar.append(h("strong",null,"Vérifier les contradictions de sens"));
+  bar.append(h("span",{class:"meta"},"Claude lit les notions validées et les fiches, puis signale ce qui se contredit. Dernière vérification : "+fmt(S.lastCheck)+"."));
+  if(SAMPLE)bar.append(h("div",null,h("button",{class:"btn primary",type:"button",disabled:V.checking,onclick:checkCoherence},V.checking?"Analyse en cours…":"Vérifier la cohérence")));
+  else bar.append(h("span",{class:"meta"},"Cette vérification est disponible quand la page est ouverte dans Claude. Les erreurs de validation et de structure restent détectées automatiquement."));
+  if(V.msg)bar.append(h("span",{class:"note info"},V.msg));
+  mi.append(bar);
+  mi.append(h("span",{class:"meta"},"Touche une erreur pour ouvrir la fiche à l'endroit concerné, avec la notion liée à côté."));
+  var list=ERR.filter(function(e){return V.errKind==="all"||e.kind===V.errKind});
+  if(!list.length){mi.append(h("div",{class:"empty"},ERR.length?"Aucune erreur de ce type.":"Aucune erreur détectée."));return}
+  Object.keys(KINDS).forEach(function(k){
+    var l=list.filter(function(e){return e.kind===k});if(!l.length)return;
+    var g=h("div",{class:"group"},h("h3",null,KINDS[k][0],h("span",{class:"count"},l.length)));
+    var rows=h("div",{style:"display:flex;flex-direction:column;gap:8px"});
+    l.forEach(function(e){
+      var f=byId(e.fiche),r=e.related?byId(e.related.id):null;
+      var ref=null;
+      if(r){
+        var isN=r.type==="notion";
+        ref=h("div",{class:"eref"},
+          h("span",{class:"lab"},isN?"Notion liée":"Fiche liée"),
+          h("strong",null,r.name||"Sans nom"),
+          isN?(r.validated?h("span",{class:"pill ok"},"✓ Validée"):h("span",{class:"pill warn"},"Non validée")):null,
+          e.related.note?h("span",{class:"meta"},e.related.note):null,
+          h("span",{class:"excerpt"},relExcerpt(e.related)));
+      }else ref=h("div",{class:"eref"},h("span",{class:"lab"},"Notion liée"),h("span",{class:"meta"},"Aucune notion précise : l'erreur vient de la fiche elle-même."));
+      rows.append(h("div",{class:"erow",role:"button",tabindex:"0",onclick:function(){openError(e)},onkeydown:function(ev){if(ev.key==="Enter")openError(e)}},
+        h("div",{class:"ebody"},
+          h("span",{class:"pill "+KINDS[k][1]},e.label),
+          h("strong",null,f?(f.name||"Sans nom"):"—"),
+          h("span",{class:"meta"},f?TYPES[f.type]+(f.type==="notion"?"":" · "+(f.nation?nName(f.nation):"sans nation"))+" › "+where(e,f):""),
+          h("p",null,e.msg),
+          e.extrait?h("p",{class:"quote"},"« "+e.extrait+" »"):null),
+        ref,
+        h("div",{class:"eact"},
+          h("button",{class:"btn sm primary",type:"button",onclick:function(ev){ev.stopPropagation();openError(e)}},"Aller à l'erreur"),
+          e.cid?h("button",{class:"btn sm",type:"button",onclick:function(ev){ev.stopPropagation();S.contradictions=S.contradictions.filter(function(c){return c.id!==e.cid});S.missing=(S.missing||[]).filter(function(c){return c.id!==e.cid});log(e.kindMissing?"Notion inexistante ignorée":"Contradiction ignorée");commit()}},"Ignorer"):null)));
+    });
+    g.append(rows);mi.append(g);
+  });
+}
+async function checkCoherence(){
+  if(!SAMPLE||V.checking)return;
+  V.checking=true;V.msg="";render();
+  try{
+    var data={
+      notions_validees:S.fiches.filter(function(f){return f.type==="notion"&&f.validated}).map(function(n){return {id:n.id,nom:n.name,portee:n.common?"toutes les nations":n.nations.map(nName),texte:n.sections.map(function(s){return s.title+" : "+s.text}).join("\n")}}),
+      notions_non_validees:S.fiches.filter(function(f){return f.type==="notion"&&!f.validated}).map(function(n){return n.name}),
+      fiches:S.fiches.filter(function(f){return f.type!=="notion"}).map(function(f){return {id:f.id,type:TYPES[f.type],nom:f.name,nation:nName(f.nation),espece:f.espece,fonction:f.fonction,affinite:affs(f).join(" + "),texte:f.sections.map(function(s){return s.title+" : "+s.text}).join("\n")}})
+    };
+    var js=JSON.stringify(data),cut=false;
+    if(js.length>70000){js=js.slice(0,70000);cut=true}
+    var prompt="Tu vérifies la cohérence d'un univers de fiction. Les notions validées sont la référence absolue. Une notion commune s'applique à toutes les nations ; une notion propre à une nation ne s'applique qu'aux fiches de cette nation. Repère uniquement les contradictions réelles : (1) une fiche qui contredit une notion validée qui s'applique à elle, (2) deux fiches qui se contredisent entre elles. Repère aussi les notions inexistantes : un terme propre à l'univers, clairement employé dans une fiche, que ni les notions validées ni les noms de notions non validées ne définissent. Ignore les mots courants et les noms de personnages ou de lieux. Ne signale ni style, ni orthographe, ni manque d'information. Ne devine rien : si ce n'est pas clairement contradictoire, ne le signale pas.\n\nRéponds uniquement avec un objet JSON, sans texte autour, de la forme {\"contradictions\":[{\"fiches\":[\"id1\",\"id2\"],\"section_principale\":\"titre exact de la section de la fiche principale\",\"section_liee\":\"titre exact de la section de l'autre fiche ou notion\",\"extrait\":\"citation courte de la fiche principale qui pose problème\",\"explication\":\"phrase courte en français qui dit précisément ce qui ne va pas\"}],\"notions_manquantes\":[{\"fiche\":\"id\",\"concept\":\"le terme sans notion\",\"section\":\"titre exact de la section\",\"extrait\":\"citation courte\",\"explication\":\"phrase courte\"}]}. Le tableau \"fiches\" contient les identifiants concernés : la fiche principale (celle qui contient l'erreur) en premier, puis la notion ou l'autre fiche. Si rien ne se contredit et qu'aucune notion ne manque, renvoie {\"contradictions\":[],\"notions_manquantes\":[]}.\n\nDonnées :\n"+js;
+    var r=await SAMPLE(prompt,{cache:false});
+    var txt=(r&&r.text)||"";var mm=txt.match(/\{[\s\S]*\}/);
+    if(!mm)throw new Error("Réponse illisible");
+    var obj=JSON.parse(mm[0]);var arr=Array.isArray(obj.contradictions)?obj.contradictions:[];
+    S.contradictions=arr.filter(function(c){return c&&Array.isArray(c.fiches)&&c.fiches.some(byId)}).map(function(c){return {id:uid(),fiches:c.fiches.filter(byId),msg:String(c.explication||"Contradiction détectée."),section:String(c.section_principale||""),relSection:String(c.section_liee||""),extrait:String(c.extrait||""),at:now()}}).filter(function(c){return c.fiches.length});
+    var ma=Array.isArray(obj.notions_manquantes)?obj.notions_manquantes:[];
+    S.missing=ma.filter(function(m){return m&&byId(String(m.fiche))&&m.concept}).map(function(m){return {id:uid(),fiche:String(m.fiche),concept:String(m.concept),section:String(m.section||""),extrait:String(m.extrait||""),msg:String(m.explication||("Le concept « "+m.concept+" » n'a aucune notion.")),at:now()}});
+    S.lastCheck=now();
+    log("Vérification de cohérence : "+S.contradictions.length+" contradiction(s), "+S.missing.length+" notion(s) inexistante(s)");
+    V.msg=(S.contradictions.length||S.missing.length?S.contradictions.length+" contradiction(s) et "+S.missing.length+" notion(s) inexistante(s).":"Aucune contradiction ni notion inexistante.")+(cut?" Les données étaient trop longues : la fin n'a pas été analysée.":"");
+  }catch(e){
+    V.msg=(e&&e.code==="not_granted")?"La vérification n'est pas autorisée dans cette vue.":(e&&e.code==="rate_limited")?"Trop de demandes. Réessaie dans un moment.":"La vérification a échoué. Réessaie dans un moment.";
+  }
+  V.checking=false;commit();
+}
+
+/* ---------- listes ---------- */
+function renameValue(key,old,nv){
+  var arr=S.lists[key],i=arr.indexOf(old);
+  if(i<0||!nv||nv===old||arr.indexOf(nv)>=0)return false;
+  arr[i]=nv;
+  S.fiches.forEach(function(f){if(key==="affinite"){if(Array.isArray(f.affinites))f.affinites=f.affinites.map(function(x){return x===old?nv:x})}else if(f[key]===old)f[key]=nv});
+  if(key==="espece"&&S.subs[old]){S.subs[nv]=S.subs[old];delete S.subs[old]}
+  var lab=(LISTS.find(function(l){return l[0]===key})||[0,key])[1];
+  log(lab+" : « "+old+" » renommé en « "+nv+" »");
+  return true;
+}
+function vals(f,key){return key==="affinite"?affs(f):(f[key]?[f[key]]:[])}
+function listsPage(mi){
+  mi.append(h("div",{class:"head"},h("h1",null,"Listes")),h("span",{class:"meta"},"Les valeurs proposées dans les fiches de personnages. Une fiche qui utilise une valeur supprimée est signalée en erreur."));
+  var cols=h("div",{class:"cols"});
+  LISTS.forEach(function(l){
+    var key=l[0],p=h("div",{class:"panel"},h("h2",{style:"font-size:1.15rem"},l[1]));
+    S.lists[key].forEach(function(v,idx){
+      var users=S.fiches.filter(function(f){return f.type==="perso"&&vals(f,key).indexOf(v)>=0}).sort(function(a,b){return (a.name||"").localeCompare(b.name||"","fr")}),used=users.length,tag=key+"|"+v,isOpen=V.lo===tag;
+      function doRename(nv){
+        nv=(nv||"").trim();
+        if(!nv||nv===v){V.le=null;render();return}
+        if(S.lists[key].indexOf(nv)>=0){V.leMsg="« "+nv+" » existe déjà dans cette liste.";render();return}
+        S.lists[key][idx]=nv;
+        S.fiches.forEach(function(f){if(key==="affinite"){if(Array.isArray(f.affinites))f.affinites=f.affinites.map(function(x){return x===v?nv:x})}else if(f[key]===v)f[key]=nv});
+        if(key==="espece"&&S.subs[v]){S.subs[nv]=S.subs[v];delete S.subs[v]}
+        if(V.lo===tag)V.lo=key+"|"+nv;
+        V.le=null;V.leMsg="";
+        log(l[1]+" : « "+v+" » renommé en « "+nv+" »");commit();
+      }
+      var row=h("div",{class:"item",style:"flex-wrap:wrap"});
+      if(V.le===tag){
+        var inp=h("input",{type:"text","aria-label":"Nouvelle valeur",style:"flex:1 1 160px"});inp.value=v;
+        inp.addEventListener("keydown",function(e){if(e.key==="Enter")doRename(inp.value)});
+        row.append(inp,h("button",{class:"btn sm primary",type:"button",onclick:function(){doRename(inp.value)}},"Enregistrer"),
+          h("button",{class:"btn sm",type:"button",onclick:function(){V.le=null;V.leMsg="";render()}},"Annuler"));
+        setTimeout(function(){inp.focus();inp.select()},0);
+      }else if(V.ld===tag){
+        row.append(h("span",{class:"note",style:"flex:1 1 200px"},"Supprimer « "+v+" » ? "+(used?used+" fiche(s) seront signalées en erreur.":"Aucune fiche ne l'utilise.")),
+          h("button",{class:"btn sm danger",type:"button",onclick:function(){S.lists[key].splice(idx,1);if(key==="espece")delete S.subs[v];V.ld=null;if(V.lo===tag)V.lo=null;log(l[1]+" : « "+v+" » supprimé");commit()}},"Confirmer"),
+          h("button",{class:"btn sm",type:"button",onclick:function(){V.ld=null;render()}},"Annuler"));
+      }else{
+        row.append(h("strong",{style:"flex:1 1 120px;overflow-wrap:anywhere"},v),
+          h("button",{class:"btn sm"+(isOpen?" primary":""),type:"button","aria-expanded":isOpen?"true":"false",title:"Voir les personnages",onclick:function(){V.lo=isOpen?null:tag;render()}},(isOpen?"Masquer":"Voir")+" ("+used+")"),
+          h("button",{class:"btn sm",type:"button",onclick:function(){V.le=tag;V.ld=null;V.leMsg="";render()}},"Modifier"),
+          h("button",{class:"btn sm danger",type:"button",onclick:function(){V.ld=tag;V.le=null;render()}},"Supprimer"));
+      }
+      p.append(row);
+      if(V.le===tag&&V.leMsg)p.append(h("div",{class:"note"},V.leMsg));
+      if(isOpen){
+        var box=h("div",{class:"panel",style:"margin:2px 0 10px"});
+        var userRow=function(f){return h("div",{class:"item"},h("button",{class:"btn sm",type:"button",style:"flex:1;text-align:left",onclick:function(){openEditor(f.id)}},f.name||"Sans nom"),h("span",{class:"meta"},f.nation?nName(f.nation):"Sans nation"))};
+        if(key==="espece"){
+          var subs=S.subs[v]=S.subs[v]||[];
+          box.append(h("strong",null,"Sous-espèces"));
+          if(!subs.length)box.append(h("div",{class:"meta"},"Aucune sous-espèce. Ajoutes-en si cette espèce en a."));
+          subs.forEach(function(sv,si){
+            var stag="sub|"+v+"|"+sv,srow=h("div",{class:"item",style:"flex-wrap:wrap"});
+            if(V.ld===stag){
+              srow.append(h("span",{class:"note",style:"flex:1 1 200px"},"Supprimer « "+sv+" » ?"),
+                h("button",{class:"btn sm danger",type:"button",onclick:function(){subs.splice(si,1);if(V.ls===sv)V.ls=null;V.ld=null;log("Sous-espèce de « "+v+" » : « "+sv+" » supprimée");commit()}},"Confirmer"),
+                h("button",{class:"btn sm",type:"button",onclick:function(){V.ld=null;render()}},"Annuler"));
+            }else{
+              var sinp=h("input",{type:"text","aria-label":"Sous-espèce",style:"flex:1 1 140px"});sinp.value=sv;
+              var ren=function(){
+                var nv=sinp.value.trim();if(!nv||nv===sv)return;if(subs.indexOf(nv)>=0){sinp.value=sv;return}
+                subs[si]=nv;S.fiches.forEach(function(f){if(f.espece===v&&f.sousEspece===sv)f.sousEspece=nv});if(V.ls===sv)V.ls=nv;
+                log("Sous-espèce de « "+v+" » : « "+sv+" » renommée en « "+nv+" »");commit()};
+              sinp.addEventListener("keydown",function(e){if(e.key==="Enter")ren()});
+              srow.append(sinp,h("button",{class:"btn sm",type:"button",onclick:ren},"Renommer"),
+                h("button",{class:"btn sm danger",type:"button",onclick:function(){V.ld=stag;render()}},"Supprimer"));
+            }
+            box.append(srow);
+          });
+          var sadd=h("input",{type:"text","aria-label":"Nouvelle sous-espèce",placeholder:"Nouvelle sous-espèce"});
+          var doSub=function(){var nv=sadd.value.trim();if(!nv||subs.indexOf(nv)>=0)return;subs.push(nv);log("Sous-espèce de « "+v+" » : « "+nv+" » ajoutée");commit()};
+          sadd.addEventListener("keydown",function(e){if(e.key==="Enter")doSub()});
+          box.append(h("div",{class:"item"},sadd,h("button",{class:"btn sm primary",type:"button",onclick:doSub},"Ajouter")));
+        }
+        box.append(h("strong",null,"Personnages"));
+        if(!users.length)box.append(h("div",{class:"meta"},"Aucun personnage."));
+        if(key==="espece"&&(S.subs[v]||[]).length&&users.length){
+          var cats=S.subs[v].slice();if(users.some(function(f){return !f.sousEspece||cats.indexOf(f.sousEspece)<0}))cats.push("");
+          if(V.ls&&cats.indexOf(V.ls)<0)V.ls=null;
+          if(V.ls)box.append(h("div",null,h("button",{class:"btn sm",type:"button",onclick:function(){V.ls=null;render()}},"← Toutes les sous-espèces")));
+          cats.forEach(function(c){
+            if(V.ls&&V.ls!==c)return;
+            var gl=users.filter(function(f){return c?f.sousEspece===c:(!f.sousEspece||S.subs[v].indexOf(f.sousEspece)<0)});
+            box.append(h("button",{class:"btn sm"+(V.ls===c&&c?" primary":""),type:"button",style:"width:100%;text-align:left;margin-top:6px",onclick:function(){if(c){V.ls=V.ls===c?null:c;render()}}},(c||"Sans sous-espèce")+" ("+gl.length+")"));
+            gl.forEach(function(f){box.append(userRow(f))});
+          });
+        }else users.forEach(function(f){box.append(userRow(f))});
+        p.append(box)}
+    });
+    var add=h("input",{type:"text","aria-label":"Nouvelle valeur",placeholder:"Nouvelle valeur",id:"add_"+key,onkeydown:function(e){if(e.key==="Enter")doAdd()}});
+    function doAdd(){var v=add.value.trim();if(!v||S.lists[key].indexOf(v)>=0)return;S.lists[key].push(v);log(l[1]+" : « "+v+" » ajouté");commit()}
+    p.append(h("div",{class:"item"},add,h("button",{class:"btn sm primary",type:"button",onclick:doAdd},"Ajouter")));
+    cols.append(p);
+  });
+  mi.append(cols);
+}
+
+/* ---------- historique ---------- */
+function historyPage(mi){
+  mi.append(h("div",{class:"head"},h("h1",null,"Historique")),h("span",{class:"meta"},"Toutes les modifications, de la plus récente à la plus ancienne. L'historique de chaque fiche est aussi visible dans la fiche."));
+  var box=h("div",{class:"panel log"});
+  if(!S.log.length)box.append(h("div",null,"Rien pour l'instant."));
+  S.log.forEach(function(l){
+    var f=l.fiche?byId(l.fiche):null;
+    box.append(h("div",null,h("time",null,fmt(l.at)),h("span",null,l.text,f?h("button",{class:"btn sm",type:"button",style:"margin-left:8px",onclick:function(){openEditor(f.id)}},"Ouvrir"):null)));
+  });
+  mi.append(box);
+}
+
+/* ---------- sauvegarde ---------- */
+function mergeImport(o){
+  var ni=0,fi=0;
+  o.nations.forEach(function(n){if(!S.nations.some(function(x){return x.id===n.id})){S.nations.push(n);ni++}});
+  o.fiches.forEach(function(f){if(!S.fiches.some(function(x){return x.id===f.id})){S.fiches.push(f);fi++}});
+  Object.keys(o.subs||{}).forEach(function(k){var cur=S.subs[k]=S.subs[k]||[];(o.subs[k]||[]).forEach(function(v){if(cur.indexOf(v)<0)cur.push(v)})});
+  (o.cats||[]).forEach(function(c){if(!S.cats.some(function(x){return x.id===c.id}))S.cats.push(c)});
+  LISTS.forEach(function(l){(o.lists[l[0]]||[]).forEach(function(v){if(S.lists[l[0]].indexOf(v)<0)S.lists[l[0]].push(v)})});
+  S.nations.sort(function(a,b){return (a.ord||0)-(b.ord||0)});
+  V.pendingImport=null;
+  log("Sauvegarde fusionnée : "+fi+" fiche(s) et "+ni+" nation(s) ajoutée(s)");
+  V.msg="Fusion terminée : "+fi+" fiche(s) et "+ni+" nation(s) ajoutées.";
+  commit();
+}
+function backupPage(mi){
+  mi.append(h("div",{class:"head"},h("h1",null,"Sauvegarde")));
+  mi.append(h("div",{class:"note info"},syncOn()?"Tes fiches se synchronisent avec ton compte Claude et s'affichent sur tous les appareils où tu ouvres DMA. La sauvegarde ci-dessous sert de copie de secours.":"La synchronisation n'est pas active ici : les données restent dans le navigateur de cet appareil. Pour les retrouver ailleurs, exporte un fichier ici et importe-le sur l'autre appareil."));
+  if(!HAS_CLAUDE){var la=lastAuto();mi.append(h("div",{class:"note info"},"Sauvegarde automatique : un fichier est téléchargé une fois par jour à l'ouverture de l'application, s'il y a au moins une fiche. "+(la?"Dernière : "+new Date(la).toLocaleString("fr-FR")+".":"Aucune pour l'instant.")))}
+  var p=h("div",{class:"panel"});
+  p.append(h("strong",null,"Exporter"));
+  p.append(h("span",{class:"meta"},S.nations.length+" nation(s), "+S.fiches.length+" fiche(s)."));
+  var row=h("div",{class:"bar"});
+  if(DL)row.append(h("button",{class:"btn primary",type:"button",onclick:function(){
+    var d=new Date(),name="dma-sauvegarde-"+d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")+".json";
+    DL.save({filename:name,data:JSON.stringify(S,null,1)}).then(function(){V.msg="Sauvegarde enregistrée.";render()},function(e){if(!e||e.code!=="declined"){V.msg="L'enregistrement a échoué. Utilise « Copier la sauvegarde ».";render()}});
+  }},"Télécharger la sauvegarde"));
+  if(!DL&&!HAS_CLAUDE)row.append(h("button",{class:"btn primary",type:"button",onclick:function(){saveBlob(backupName(),JSON.stringify(S,null,1));V.msg="Sauvegarde téléchargée dans les Téléchargements de l'appareil.";render()}},"Télécharger la sauvegarde"));
+  row.append(h("button",{class:"btn",type:"button",onclick:function(){
+    var txt=JSON.stringify(S);
+    var ok=function(){V.msg="Sauvegarde copiée. Colle-la dans un fichier texte pour la garder.";render()};
+    var fb=function(){var ta=$("#bk");if(ta){ta.hidden=false;ta.value=txt;ta.select()}V.msg="Copie impossible ici. Le texte est affiché ci-dessous : sélectionne-le et copie-le.";render();var t2=$("#bk");if(t2){t2.hidden=false;t2.value=txt}};
+    try{navigator.clipboard.writeText(txt).then(ok,fb)}catch(e){fb()}
+  }},"Copier la sauvegarde"));
+  p.append(row,h("textarea",{id:"bk",hidden:true,"aria-label":"Texte de la sauvegarde",readonly:true}));
+  mi.append(p);
+  if(S.fiches.some(function(f){return f.example})||S.nations.some(function(n){return n.example})){
+    mi.append(h("div",{class:"panel"},h("strong",null,"Données d'exemple"),h("span",{class:"meta"},"Supprime les nations et les fiches marquées « exemple ». Tes propres fiches ne sont pas touchées."),h("div",null,h("button",{class:"btn danger",type:"button",onclick:removeExamples},"Supprimer les exemples"))));
+  }
+  var dg=h("div",{class:"panel"},h("strong",null,"Diagnostic de synchronisation"),h("span",{class:"meta"},"Statut : "+statusText()+". Version v27."),
+    h("div",{class:"bar"},h("button",{class:"btn sm",type:"button",onclick:function(){testWrite()}},"Tester l'écriture"),h("button",{class:"btn sm",type:"button",onclick:function(){connect()}},"Relancer la connexion")),
+    h("pre",{id:"synclog",style:"white-space:pre-wrap;overflow-wrap:anywhere;font-size:.78rem;margin:0;max-height:260px;overflow:auto"},SYNC.log.join("\n")||"Aucun événement pour l'instant."));
+  if(HAS_CLAUDE)mi.append(dg);
+  var q=h("div",{class:"panel"});
+  q.append(h("strong",null,"Importer"));
+  q.append(h("span",{class:"meta"},"« Fusionner » ajoute à tes données ce qui manque et ne supprime rien. « Remplacer » efface tes données actuelles."));
+  var fi=h("input",{type:"file",id:"imp",accept:".json,application/json","aria-label":"Fichier de sauvegarde",onchange:function(e){
+    var f=e.target.files[0];if(!f)return;
+    var r=new FileReader();r.onload=function(){try{var o=normalize(JSON.parse(r.result));V.pendingImport=o;V.msg=""}catch(x){V.pendingImport=null;V.msg="Ce fichier n'est pas une sauvegarde DMA valide."}render()};r.readAsText(f);
+  }});
+  q.append(fi);
+  var pt=h("textarea",{id:"imptext",placeholder:"Ou colle ici le texte de la sauvegarde","aria-label":"Texte de la sauvegarde à importer"});
+  q.append(pt,h("div",null,h("button",{class:"btn",type:"button",onclick:function(){
+    try{V.pendingImport=normalize(JSON.parse(pt.value));V.msg=""}catch(x){V.pendingImport=null;V.msg="Ce texte n'est pas une sauvegarde DMA valide."}
+    render();
+  }},"Importer le texte collé")));
+  if(V.pendingImport)q.append(h("div",{class:"note"},"Remplacer les données actuelles par "+V.pendingImport.nations.length+" nation(s) et "+V.pendingImport.fiches.length+" fiche(s) ?"+(syncOn()?" Cela remplacera aussi les données des autres appareils.":""),
+    h("span",{class:"bar"},h("button",{class:"btn sm primary",type:"button",onclick:function(){mergeImport(V.pendingImport)}},"Fusionner (garde les deux)"),h("button",{class:"btn sm danger",type:"button",onclick:function(){S=V.pendingImport;V.pendingImport=null;V.nation="all";log("Sauvegarde importée");V.msg="Sauvegarde importée.";commit()}},"Remplacer"),
+    h("button",{class:"btn sm",type:"button",onclick:function(){V.pendingImport=null;render()}},"Annuler"))));
+  mi.append(q);
+  if(V.msg)mi.append(h("div",{class:"note info"},V.msg));
+}
+
+/* ---------- éditeur de fiche ---------- */
+function newFiche(type,cat,nat){
+  var f={id:uid(),type:type,kind:"",name:"",nation:"",nations:[],common:false,validated:false,espece:"",fonction:"",affinites:[],exception:false,sousEspece:"",genre:"",age:"",taille:"",dateType:"",date:"",surnoms:[],cat:"",links:[],refs:[],sections:DEF[type].map(function(t){return sec(t)}),createdAt:null,updatedAt:null,history:[]};
+  if(V.nation!=="all"){if(type==="notion")f.nations=[V.nation];else f.nation=V.nation}
+  else if(type==="notion")f.common=true;
+  if(type==="region"){var c=catById(cat);if(c){f.cat=c.id;f.sections=c.sections.map(function(t){return sec(t)})}}
+  if(nat&&type!=="notion")f.nation=nat;
+  return f;
+}
+function openEditor(id,type,opts){
+  opts=opts||{};
+  var isNew=!id,d=isNew?newFiche(type,opts.cat,opts.nation):clone(byId(id));
+  E={d:d,isNew:isNew,orig:snap(d),adding:null,addCat:false,confirm:null,msg:"",side:opts.side||null,focus:opts.field||null};
+  drawEditor();
+}
+function closeEditor(){E=null;$("#layer").replaceChildren();document.documentElement.style.overflow=""}
+function snap(d){var c=clone(d);c.affinites=(c.affinites||[]).filter(Boolean);c.links=c.links||[];c.exception=!!c.exception;c.sousEspece=c.sousEspece||"";c.cat=c.cat||"";if(c.type==="perso"){idDef(c);c.surnoms=c.surnoms.map(function(x){return (x||"").trim()}).filter(Boolean);c.age=c.age.trim();c.taille=c.taille.trim();c.date=c.date.trim()}return JSON.stringify(c,function(k,v){if(v&&typeof v==="object"&&!Array.isArray(v)){var o={};Object.keys(v).sort().forEach(function(x){o[x]=v[x]});return o}return v})}
+function dirty(){return E&&snap(E.d)!==E.orig}
+function sidePanel(){
+  if(!E.side)return null;
+  var r=byId(E.side.id);if(!r)return null;
+  var isN=r.type==="notion";
+  var p=h("aside",{class:"sidep","aria-label":isN?"Notion liée":"Fiche liée"});
+  p.append(h("span",{class:"lab"},isN?"Notion liée":"Fiche liée"),h("h3",null,r.name||"Sans nom"));
+  var chips=h("div",{class:"chips"});
+  if(isN){
+    chips.append(r.validated?h("span",{class:"pill ok"},"✓ Validée"):h("span",{class:"pill warn"},"Non validée"));
+    chips.append(h("span",{class:"chip"},r.common?"Commune à toutes les nations":"Propre à : "+(r.nations.map(function(i){return nName(i)}).join(", ")||"aucune nation")));
+  }else chips.append(h("span",{class:"chip"},(r.type==="region"?(catName(r.cat)||"Sans catégorie"):TYPES[r.type])+" · "+(r.nation?nName(r.nation):"sans nation")));
+  p.append(chips);
+  if(E.side.note)p.append(h("div",{class:"note"},E.side.note));
+  r.sections.forEach(function(s){
+    var hit=E.side.section&&s.title===E.side.section;
+    p.append(h("div",{class:"sidesec"+(hit?" hit":"")},h("strong",null,s.title||"Sans titre"),h("div",{class:"txt"},s.text||"(vide)")));
+  });
+  p.append(h("div",{class:"bar"},
+    h("button",{class:"btn sm",type:"button",disabled:dirty(),onclick:function(){openEditor(r.id)}},"Ouvrir "+(isN?"la notion":"la fiche")),
+    h("button",{class:"btn sm",type:"button",onclick:function(){E.side=null;drawEditor()}},"Fermer le panneau")));
+  if(dirty())p.append(h("span",{class:"meta"},"Enregistre ta fiche avant d'ouvrir celle-ci."));
+  return p;
+}
+function applyFocus(){
+  if(!E||!E.focus)return;
+  var fo=E.focus;E.focus=null;
+  setTimeout(function(){
+    var el=document.querySelector('#layer [data-f="'+fo+'"]');if(!el)return;
+    el.scrollIntoView({block:"center",behavior:"smooth"});
+    el.classList.add("flash");setTimeout(function(){el.classList.remove("flash")},3500);
+  },60);
+}
+function valueTools(key,cur,setCur,id){
+  if(!cur||S.lists[key].indexOf(cur)<0)return null;
+  var wrap=h("div",{class:"bar"});
+  if(E.ren===id){
+    var inp=h("input",{type:"text","aria-label":"Nouveau nom",style:"flex:1 1 160px"});inp.value=cur;
+    var ok=function(){
+      var nv=inp.value.trim();
+      if(nv&&nv!==cur&&renameValue(key,cur,nv)){
+        setCur(nv);
+        var o=JSON.parse(E.orig);if(key==="affinite")o.affinites=(o.affinites||[]).map(function(x){return x===cur?nv:x});else if(o[key]===cur)o[key]=nv;E.orig=JSON.stringify(o);
+        persist();
+      }
+      E.ren=null;drawEditor();
+    };
+    inp.addEventListener("keydown",function(e){if(e.key==="Enter")ok()});
+    wrap.append(inp,h("button",{class:"btn sm primary",type:"button",onclick:ok},"OK"),h("button",{class:"btn sm",type:"button",onclick:function(){E.ren=null;drawEditor()}},"Annuler"));
+    setTimeout(function(){inp.focus()},0);
+  }else if(E.delv===id){
+    wrap.append(h("span",{class:"meta"},"Supprimer « "+cur+" » de la liste ? Les autres fiches qui l'utilisent seront signalées en erreur."),
+      h("button",{class:"btn sm danger",type:"button",onclick:function(){
+        S.lists[key]=S.lists[key].filter(function(x){return x!==cur});if(key==="espece")delete S.subs[cur];
+        log("Liste : « "+cur+" » supprimé");persist();setCur("");E.delv=null;drawEditor()}},"Confirmer"),
+      h("button",{class:"btn sm",type:"button",onclick:function(){E.delv=null;drawEditor()}},"Annuler"));
+  }else{
+    wrap.append(h("button",{class:"btn sm",type:"button",onclick:function(){E.ren=id;drawEditor()}},"Corriger « "+cur+" »"),
+      h("button",{class:"btn sm danger",type:"button",onclick:function(){E.delv=id;drawEditor()}},"Supprimer cette valeur"));
+  }
+  return wrap;
+}
+function drawEditor(){
+  var d=E.d,old=$("#layer .db"),st=old?old.scrollTop:0;
+  var scroller=h("div",{class:"db"});var body=h("div",{class:"form"});
+  var errs=errorsFor(S.fiches.filter(function(f){return f.id!==d.id}).concat([d])).filter(function(e){return e.fiche===d.id});
+  if(!E.isNew||d.name){if(errs.length)body.append(h("div",{class:"errs"},h("b",null,errs.length+(errs.length>1?" erreurs sur cette fiche":" erreur sur cette fiche")+" · touche une erreur pour la localiser"),errs.map(function(e){return h("button",{class:"eitem",type:"button",onclick:function(){E.side=e.related;E.focus=e.field;drawEditor()}},h("strong",null,e.label),h("span",null,e.msg),e.extrait?h("em",null,"« "+e.extrait+" »"):null)})))}
+  // nom
+  body.append(h("div",{class:"field"},h("label",{for:"e_name"},"Nom"),h("input",{type:"text",id:"e_name","data-f":"name",value:d.name,oninput:function(e){d.name=e.target.value;var t=$("#e_title");if(t)t.textContent=d.name||("Nouveau : "+TYPES[d.type].toLowerCase())}})));
+  function natSelect(){
+    var s=h("select",{id:"e_nation","data-f":"nation",style:"width:100%",onchange:function(e){d.nation=e.target.value;drawEditor()}},h("option",{value:""},"— choisir une nation —"));
+    S.nations.forEach(function(n){s.append(h("option",{value:n.id},n.name))});
+    if(d.nation&&!S.nations.some(function(n){return n.id===d.nation}))s.append(h("option",{value:d.nation},"(nation supprimée)"));
+    s.value=d.nation;return s;
+  }
+  if(d.type!=="notion"){
+    body.append(h("div",{class:"field"},h("label",{for:"e_nation"},d.type==="draft"?"Nation (facultatif)":"Nation"),natSelect()));
+  }
+  if(d.type==="region"){
+    var cf=h("div",{class:"field","data-f":"cat"},h("label",{for:"e_cat"},"Catégorie"));
+    var applyCat=function(id){
+      d.cat=id;
+      if(E.isNew&&d.sections.every(function(x){return !x.text.trim()})){var c=catById(id);d.sections=(c?c.sections:[]).map(function(t){return sec(t)})}
+    };
+    if(E.addCat){
+      var ci=h("input",{type:"text",id:"e_cat",placeholder:"Nom de la nouvelle catégorie"});
+      var okc=function(){
+        var v=ci.value.trim();
+        if(v){var ex=S.cats.find(function(c){return c.name.toLowerCase()===v.toLowerCase()});
+          if(!ex){ex={id:uid(),name:v,sections:[],ord:Date.now()};S.cats.push(ex);log("Catégorie créée : "+v);persist()}
+          applyCat(ex.id)}
+        E.addCat=false;drawEditor()};
+      ci.addEventListener("keydown",function(e){if(e.key==="Enter")okc()});
+      cf.append(h("div",{class:"item"},ci,h("button",{class:"btn sm primary",type:"button",onclick:okc},"OK"),h("button",{class:"btn sm",type:"button",onclick:function(){E.addCat=false;drawEditor()}},"✕")));
+      setTimeout(function(){ci.focus()},0);
+    }else{
+      var cs=h("select",{id:"e_cat",style:"width:100%",onchange:function(e){
+        if(e.target.value==="__add"){E.addCat=true;drawEditor()}else{applyCat(e.target.value);drawEditor()}}},h("option",{value:""},"— choisir une catégorie —"));
+      S.cats.forEach(function(c){cs.append(h("option",{value:c.id},c.name))});
+      if(d.cat&&!catById(d.cat))cs.append(h("option",{value:d.cat},"(catégorie supprimée)"));
+      cs.append(h("option",{value:"__add"},"＋ Nouvelle catégorie…"));
+      cs.value=d.cat||"";
+      cf.append(cs);
+      if(!S.cats.length)cf.append(h("span",{class:"meta"},"Aucune catégorie n'existe encore. Choisis « ＋ Nouvelle catégorie… » dans la liste pour en créer une."));
+    }
+    body.append(cf);
+  }
+  if(d.type==="draft"){
+    var ks=h("select",{id:"e_kind",style:"width:100%",onchange:function(e){d.kind=e.target.value}},h("option",{value:""},"— type de brouillon —"));
+    DRAFT_KINDS.forEach(function(k){ks.append(h("option",{value:k},k))});
+    ks.value=d.kind||"";
+    body.append(h("div",{class:"field"},h("label",{for:"e_kind"},"Type de brouillon"),ks));
+    function conv(t,label){return h("button",{class:"btn sm",type:"button",onclick:function(){
+      d.type=t;d.kind="";
+      if(t==="notion"){d.nations=d.nation?[d.nation]:[];d.common=!d.nation;d.nation="";d.validated=false;d.refs=[]}
+      drawEditor()}},label)}
+    body.append(h("div",{class:"field"},h("span",{class:"lab"},"Transformer en fiche"),h("div",{class:"bar"},conv("perso","En personnage"),conv("region","En territoire"),conv("notion","En notion")),h("span",{class:"meta"},"Le changement s'applique quand tu enregistres. Les erreurs de la nouvelle fiche s'afficheront alors.")));
+  }
+  if(d.type==="perso"){
+    idDef(d);
+    var idRow=h("div",{class:"row2"});
+    function tf(key,lab,ph,type){var fl=h("div",{class:"field","data-f":key},h("label",{for:"e_"+key},lab));var inp=h("input",{type:type||"text",id:"e_"+key,placeholder:ph||"",style:"width:100%"});if(type==="number"){inp.min="0";inp.step="1"}inp.value=d[key]||"";inp.addEventListener("input",function(){d[key]=inp.value});fl.append(inp);return fl}
+    var idBox=h("div",{class:"field","data-f":"identite"},h("span",{class:"lab"},"Identité"));
+    var r2=h("div",{class:"row2"});
+    LISTS.filter(function(l){return l[0]!=="affinite"}).map(function(l){return [l[0],l[0],l[1],l[2]]}).forEach(function(l){
+      var key=l[0],lk=l[1],fld=h("div",{class:"field","data-f":key},h("label",{for:"e_"+key},l[3]));
+      if(E.adding===key){
+        var ni=h("input",{type:"text",id:"e_"+key,placeholder:"Nouvelle valeur"});
+        var ok=function(){var v=ni.value.trim();if(v){if(S.lists[lk].indexOf(v)<0){S.lists[lk].push(v);log(l[2]+" : « "+v+" » ajouté");persist()}d[key]=v}E.adding=null;drawEditor()};
+        ni.addEventListener("keydown",function(e){if(e.key==="Enter")ok()});
+        fld.append(h("div",{class:"item"},ni,h("button",{class:"btn sm primary",type:"button",onclick:ok},"OK"),h("button",{class:"btn sm",type:"button",onclick:function(){E.adding=null;drawEditor()}},"✕")));
+        setTimeout(function(){ni.focus()},0);
+      }else{
+        var s=h("select",{id:"e_"+key,style:"width:100%",onchange:function(e){if(e.target.value==="__add"){E.adding=key;drawEditor()}else{d[key]=e.target.value;if(key==="espece"){d.sousEspece="";drawEditor()}}}},h("option",{value:""},"—"));
+        S.lists[lk].forEach(function(v){s.append(h("option",{value:v},v))});
+        if(d[key]&&S.lists[lk].indexOf(d[key])<0)s.append(h("option",{value:d[key]},d[key]+" (hors liste)"));
+        s.append(h("option",{value:"__add"},"＋ Nouvelle valeur…"));
+        s.value=d[key];fld.append(s);
+        var vt=valueTools(key,d[key],function(x){d[key]=x;if(key==="espece")d.sousEspece=""},"f:"+key);if(vt)fld.append(vt);
+      }
+      (key==="genre"?idRow:r2).append(fld);
+    });
+    idRow.append(tf("age","Âge","ex. 25 ou environ 3000 ans"));
+    idBox.append(idRow);
+    var dt=h("div",{class:"field","data-f":"date"},h("label",{for:"e_date"},"Date de naissance ou d'anniversaire"));
+    var dsel=h("select",{id:"e_dateType","aria-label":"Type de date",style:"width:100%",onchange:function(e){d.dateType=e.target.value}},h("option",{value:""},"—"),h("option",{value:"Naissance"},"Date de naissance"),h("option",{value:"Anniversaire"},"Date d'anniversaire"));dsel.value=d.dateType||"";
+    var dinp=h("input",{type:"text",id:"e_date",placeholder:"ex. 12 mars 1450",style:"width:100%"});dinp.value=d.date||"";dinp.addEventListener("input",function(){d.date=dinp.value});
+    dt.append(dsel,dinp);
+    idBox.append(h("div",{class:"row2"},tf("taille","Taille (cm)","ex. 180","number"),dt));
+    var sn=h("div",{class:"field","data-f":"surnoms"},h("label",null,"Surnoms"));
+    d.surnoms.forEach(function(v,i){
+      var inp=h("input",{type:"text","aria-label":"Surnom "+(i+1),style:"flex:1"});inp.value=v;inp.addEventListener("input",function(){d.surnoms[i]=inp.value});
+      sn.append(h("div",{class:"item"},inp,h("button",{class:"btn sm",type:"button","aria-label":"Retirer ce surnom",onclick:function(){d.surnoms.splice(i,1);drawEditor()}},"✕")));
+    });
+    sn.append(h("button",{class:"btn sm",type:"button",onclick:function(){d.surnoms.push("");drawEditor();setTimeout(function(){var ins=document.querySelectorAll('[data-f="surnoms"] input');if(ins.length)ins[ins.length-1].focus()},30)}},"＋ Ajouter un surnom"));
+    idBox.append(sn);
+    body.append(idBox);
+    body.append(r2);
+    var subl=S.subs[d.espece]||[];
+    if(subl.length||d.sousEspece){
+      var sf=h("div",{class:"field","data-f":"sousEspece"},h("label",{for:"e_sous"},"Sous-espèce"));
+      var ssel=h("select",{id:"e_sous",style:"width:100%",onchange:function(e){d.sousEspece=e.target.value}},h("option",{value:""},"—"));
+      subl.forEach(function(v){ssel.append(h("option",{value:v},v))});
+      if(d.sousEspece&&subl.indexOf(d.sousEspece)<0)ssel.append(h("option",{value:d.sousEspece},d.sousEspece+" (hors liste)"));
+      ssel.value=d.sousEspece||"";sf.append(ssel);body.append(sf);
+    }
+    d.affinites=d.affinites||[];
+    var ex=h("label",{class:"toggle"+(d.exception?" on":""),for:"e_exc","data-f":"exception"},
+      h("input",{type:"checkbox",id:"e_exc",checked:d.exception,onchange:function(e){d.exception=e.target.checked;drawEditor()}}),
+      d.exception?"Exception : plusieurs affinités élémentaires autorisées":"Exception : cocher pour autoriser plusieurs affinités");
+    body.append(ex);
+    var af=h("div",{class:"field","data-f":"affinite"},h("label",null,d.exception?"Affinités élémentaires (3 maximum)":"Affinité élémentaire"));
+    if(!d.affinites.length)d.affinites.push("");
+    d.affinites.forEach(function(v,i){
+      var row=h("div",{class:"item"});
+      if(E.addAff&&E.addAff.d===d&&E.addAff.i===i){
+        var ni=h("input",{type:"text",placeholder:"Nouvelle valeur"});
+        var ok=function(){var w=ni.value.trim();if(w){if(S.lists.affinite.indexOf(w)<0){S.lists.affinite.push(w);log("Affinité élémentaire : « "+w+" » ajoutée");persist()}d.affinites[i]=w}E.addAff=null;drawEditor()};
+        ni.addEventListener("keydown",function(e){if(e.key==="Enter")ok()});
+        row.append(ni,h("button",{class:"btn sm primary",type:"button",onclick:ok},"OK"),h("button",{class:"btn sm",type:"button",onclick:function(){E.addAff=null;drawEditor()}},"✕"));
+        setTimeout(function(){ni.focus()},0);
+      }else{
+        var sel=h("select",{style:"flex:1",onchange:function(e){if(e.target.value==="__add"){E.addAff={d:d,i:i};drawEditor()}else d.affinites[i]=e.target.value}},h("option",{value:""},"—"));
+        S.lists.affinite.forEach(function(x){sel.append(h("option",{value:x},x))});
+        if(v&&S.lists.affinite.indexOf(v)<0)sel.append(h("option",{value:v},v+" (hors liste)"));
+        sel.append(h("option",{value:"__add"},"＋ Nouvelle valeur…"));
+        sel.value=v;
+        row.append(sel);
+        if(i>0)row.append(h("button",{class:"btn sm",type:"button","aria-label":"Retirer cette affinité",onclick:function(){d.affinites.splice(i,1);drawEditor()}},"✕"));
+      }
+      af.append(row)});
+    if(d.exception&&d.affinites.length<3)af.append(h("button",{class:"btn sm",type:"button",onclick:function(){d.affinites.push("");drawEditor()}},"＋ Ajouter une affinité"));
+    else if(d.exception)af.append(h("span",{class:"meta"},"Maximum atteint : 3 affinités."));
+    if(!d.exception&&d.affinites.filter(Boolean).length>1)af.append(h("span",{class:"meta"},"Plusieurs affinités sans exception : coche « Exception » ou retire les affinités en trop."));
+    if(!d.affinites.filter(Boolean).length)af.append(h("span",{class:"meta"},"Aucune affinité renseignée : la fiche est incomplète, sans être une erreur."));
+    body.append(af);
+  }
+  if(d.type==="notion"){
+    body.append(h("label",{class:"toggle"+(d.validated?" on":""),for:"e_val","data-f":"validated"},h("input",{type:"checkbox",id:"e_val",checked:d.validated,onchange:function(e){d.validated=e.target.checked;drawEditor()}}),d.validated?"Notion validée : elle sert de référence":"Cocher pour valider cette notion"));
+    var sc=h("div",{class:"field","data-f":"scope"},h("span",{class:"lab"},"À qui s'applique cette notion ?"));
+    var opts=h("div",{class:"scope"});
+    function opt(val,title,sub){
+      var on=(val==="common")===d.common;
+      return h("label",{class:"scopeopt"+(on?" on":"")},h("input",{type:"radio",name:"e_scope",checked:on,onchange:function(){
+        d.common=(val==="common");
+        if(d.common)d.nations=[];
+        else if(d.nations.length>1)d.nations=[d.nations[0]];
+        else if(!d.nations.length&&V.nation!=="all")d.nations=[V.nation];
+        drawEditor()}}),h("span",null,h("strong",null,title),h("span",{class:"meta"},sub)));
+    }
+    opts.append(opt("common","Commune","S'applique automatiquement à toutes les nations."),opt("nation","Propre à une nation","S'applique uniquement à la nation choisie."));
+    sc.append(opts);
+    if(!d.common){
+      var ns=h("select",{id:"e_scopenation","aria-label":"Nation concernée",style:"width:100%",onchange:function(e){d.nations=e.target.value?[e.target.value]:[];drawEditor()}},h("option",{value:""},"— choisir la nation —"));
+      S.nations.forEach(function(n){ns.append(h("option",{value:n.id},n.name))});
+      if(d.nations[0]&&!S.nations.some(function(n){return n.id===d.nations[0]}))ns.append(h("option",{value:d.nations[0]},"(nation supprimée)"));
+      ns.value=d.nations[0]||"";
+      sc.append(ns);
+      if(d.nations.length>1)sc.append(h("span",{class:"meta"},"Cette notion était rattachée à plusieurs nations. Choisis-en une seule."));
+    }
+    body.append(sc);
+  }else{
+    var nf=h("div",{class:"field","data-f":"refs"},h("span",{class:"lab"},"Notions en cause"));
+    nf.append(h("span",{class:"meta"},"Les notions communes et celles de la nation s'appliquent automatiquement. Seules celles qui posent problème apparaissent ici."));
+    var nis=errs.filter(function(e){var r=e.related&&byId(e.related.id);return e.kindMissing||(r&&r.type==="notion")});
+    var nl=h("div",{class:"refs"});
+    nis.forEach(function(e){
+      var r=e.related&&byId(e.related.id);
+      nl.append(h("div",{class:"item",style:"flex-wrap:wrap"},
+        h("div",{style:"flex:1 1 200px"},h("strong",null,e.label),h("div",{class:"meta"},e.msg)),
+        r?h("button",{class:"btn sm",type:"button",onclick:function(){E.side={id:r.id,note:(e.related&&e.related.note)||""};drawEditor()}},"Voir la notion"):null));
+    });
+    if(!nis.length)nl.append(h("span",{class:"meta"},"Aucune notion en cause."));
+    nf.append(nl);
+    body.append(nf);
+  }
+  if(d.type==="perso"||d.type==="region"){
+    d.links=d.links||[];
+    var lf=h("div",{class:"field","data-f":"links"},h("span",{class:"lab"},"Fiches reliées"));
+    var nm=function(f){return (f.name||"Sans nom")+" — "+(f.type==="region"?(catName(f.cat)||"Sans catégorie"):"Personnage")+(f.nation?" · "+nName(f.nation):"")};
+    var lr=h("div",{class:"refs"});
+    d.links.forEach(function(i){
+      var r=byId(i);if(!r)return;
+      lr.append(h("div",{class:"item"},h("button",{class:"btn sm",type:"button",style:"flex:1;text-align:left",onclick:function(){E.side={id:r.id,note:""};drawEditor()}},nm(r)),
+        h("button",{class:"btn sm",type:"button","aria-label":"Retirer ce lien",onclick:function(){d.links=d.links.filter(function(x){return x!==r.id});drawEditor()}},"✕")));
+    });
+    var inc=S.fiches.filter(function(f){return f.id!==d.id&&(f.links||[]).indexOf(d.id)>=0&&d.links.indexOf(f.id)<0});
+    inc.forEach(function(r){lr.append(h("div",{class:"item"},h("button",{class:"btn sm",type:"button",style:"flex:1;text-align:left",onclick:function(){E.side={id:r.id,note:""};drawEditor()}},nm(r)),h("span",{class:"meta"},"relie cette fiche")))});
+    if(!d.links.filter(function(i){return byId(i)}).length&&!inc.length)lr.append(h("span",{class:"meta"},"Aucune fiche reliée."));
+    var cand=S.fiches.filter(function(f){return (f.type==="perso"||f.type==="region")&&f.id!==d.id&&d.links.indexOf(f.id)<0}).sort(function(a,b){return nm(a).localeCompare(nm(b),"fr")});
+    var ls=h("select",{id:"e_link","aria-label":"Relier une fiche",style:"width:100%",onchange:function(e){if(e.target.value){d.links.push(e.target.value);drawEditor()}}},h("option",{value:""},"＋ Relier une fiche…"));
+    cand.forEach(function(f){ls.append(h("option",{value:f.id},nm(f)))});
+    lf.append(h("span",{class:"meta"},"Le lien se voit des deux côtés."),lr,ls);
+    body.append(lf);
+  }
+  // sections
+  var sw=h("div",{class:"field"},h("span",{class:"lab"},"Sections"));
+  d.sections.forEach(function(s,i){
+    var ta=h("textarea",{"aria-label":"Contenu de "+(s.title||"la section"),oninput:function(e){s.text=e.target.value;e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+4+"px"}});
+    ta.value=s.text;
+    setTimeout(function(){ta.style.height="auto";ta.style.height=Math.max(90,ta.scrollHeight+4)+"px"},0);
+    function mv(dir){var j=i+dir;if(j<0||j>=d.sections.length)return;var t=d.sections[i];d.sections[i]=d.sections[j];d.sections[j]=t;drawEditor()}
+    sw.append(h("div",{class:"sec","data-f":"sec:"+s.id},
+      h("div",{class:"sec-h"},
+        h("input",{type:"text","aria-label":"Titre de la section",value:s.title,placeholder:"Titre de la section",oninput:function(e){s.title=e.target.value}}),
+        h("button",{class:"btn sm",type:"button","aria-label":"Monter",disabled:i===0,onclick:function(){mv(-1)}},"↑"),
+        h("button",{class:"btn sm",type:"button","aria-label":"Descendre",disabled:i===d.sections.length-1,onclick:function(){mv(1)}},"↓"),
+        h("button",{class:"btn sm danger",type:"button","aria-label":"Supprimer la section",onclick:function(){d.sections.splice(i,1);drawEditor()}},"✕")),
+      ta));
+  });
+  var addbar=h("div",{class:"bar"});
+  function addSec(t){d.sections.push(sec(t));drawEditor();var b=$("#layer .db");if(b)b.scrollTop=b.scrollHeight}
+  if(d.type==="notion")["Exceptions","Mécanismes"].forEach(function(t){
+    if(!d.sections.some(function(x){return (x.title||"").trim().toLowerCase()===t.toLowerCase()}))addbar.append(h("button",{class:"btn",type:"button",onclick:function(){addSec(t)}},"+ "+t));
+  });
+  addbar.append(h("button",{class:"btn",type:"button",onclick:function(){addSec("Nouvelle section")}},"+ Ajouter une section"));
+  sw.append(addbar);
+  body.append(sw);
+  // historique
+  var hist=h("details",null,h("summary",null,"Historique de la fiche ("+d.history.length+")"));
+  hist.append(h("div",{class:"log"},d.history.slice().reverse().map(function(x){return h("div",null,h("time",null,fmt(x.at)),h("span",null,x.text))})));
+  if(!d.history.length)hist.append(h("span",{class:"meta"},"Pas encore enregistrée."));
+  body.append(hist);
+  if(d.updatedAt)body.append(h("span",{class:"meta"},"Créée le "+fmt(d.createdAt)+" · Modifiée le "+fmt(d.updatedAt)));
+  if(E.msg)body.append(h("div",{class:"errs"},E.msg));
+
+  var foot=h("div",{class:"df"});
+  var left=h("div",{class:"grp"});
+  if(!E.isNew){
+    if(E.confirm==="del")left.append(h("span",{class:"meta"},"Supprimer cette fiche ?"),h("button",{class:"btn sm danger",type:"button",onclick:function(){log("Fiche supprimée : "+(d.name||"Sans nom")+" ("+TYPES[d.type]+")");S.fiches=S.fiches.filter(function(f){return f.id!==d.id});S.contradictions=S.contradictions.filter(function(c){return c.fiches.indexOf(d.id)<0});closeEditor();commit()}},"Oui, supprimer"),h("button",{class:"btn sm",type:"button",onclick:function(){E.confirm=null;drawEditor()}},"Non"));
+    else left.append(h("button",{class:"btn sm danger",type:"button",onclick:function(){E.confirm="del";drawEditor()}},"Supprimer"));
+  }
+  var right=h("div",{class:"grp"});
+  if(E.confirm==="close")right.append(h("span",{class:"meta"},"Abandonner les modifications ?"),h("button",{class:"btn sm danger",type:"button",onclick:closeEditor},"Oui"),h("button",{class:"btn sm",type:"button",onclick:function(){E.confirm=null;drawEditor()}},"Non"));
+  else right.append(h("button",{class:"btn",type:"button",onclick:tryClose},"Annuler"),h("button",{class:"btn primary",type:"button",onclick:saveFiche},"Enregistrer"));
+  foot.append(left,right);
+
+  var sp=sidePanel();scroller.append(h("div",{class:"split"+(sp?" two":"")},body,sp));
+  var drawer=h("div",{class:"drawer"+(sp?" wide":""),role:"dialog","aria-modal":"true","aria-label":"Fiche"},
+    h("div",{class:"dh"},h("div",{style:"min-width:0"},h("span",{class:"meta"},d.type==="region"?(catName(d.cat)||"Fiche de territoire"):TYPES[d.type]),h("h2",{id:"e_title"},d.name||("Nouveau : "+TYPES[d.type].toLowerCase()))),h("button",{class:"btn sm",type:"button","aria-label":"Fermer",onclick:tryClose},"✕")),
+    scroller,foot);
+  $("#layer").replaceChildren(h("div",{class:"scrim",onclick:tryClose}),drawer);
+  document.documentElement.style.overflow="hidden";
+  scroller.scrollTop=st;
+  applyFocus();
+}
+function tryClose(){if(dirty()){E.confirm="close";drawEditor()}else closeEditor()}
+function diff(o,d){
+  var c=[];
+  if(o.type!==d.type)c.push("converti en "+TYPES[d.type].toLowerCase());
+  if(o.kind!==d.kind)c.push("type de brouillon : "+(o.kind||"vide")+" → "+(d.kind||"vide"));
+  if(o.name!==d.name)c.push("nom « "+o.name+" » → « "+d.name+" »");
+  if(d.type==="perso"){[["dateType","type de date"],["date","date"],["age","âge"],["taille","taille"]].forEach(function(k){if((o[k[0]]||"")!==(d[k[0]]||""))c.push(k[1]+" : "+(o[k[0]]||"vide")+" → "+(d[k[0]]||"vide"))});if((o.surnoms||[]).join(", ")!==(d.surnoms||[]).filter(Boolean).join(", "))c.push("surnoms : "+((o.surnoms||[]).join(", ")||"aucun")+" → "+((d.surnoms||[]).filter(Boolean).join(", ")||"aucun"))}
+  LISTS.forEach(function(l){if(l[0]==="affinite")return;if(o[l[0]]!==d[l[0]])c.push(l[2]+" : "+(o[l[0]]||"vide")+" → "+(d[l[0]]||"vide"))});
+  if(affs(o).join(" + ")!==affs(d).join(" + "))c.push("affinités : "+(affs(o).join(" + ")||"vide")+" → "+(affs(d).join(" + ")||"vide"));
+  if(!!o.exception!==!!d.exception)c.push("exception d'affinité : "+(d.exception?"cochée":"décochée"));
+  if((o.sousEspece||"")!==(d.sousEspece||""))c.push("sous-espèce : "+(o.sousEspece||"vide")+" → "+(d.sousEspece||"vide"));
+  if((o.cat||"")!==(d.cat||""))c.push("catégorie : "+(catName(o.cat)||"aucune")+" → "+(catName(d.cat)||"aucune"));
+  var ola=o.links||[],dla=d.links||[];
+  dla.filter(function(i){return ola.indexOf(i)<0}).forEach(function(i){c.push("lien ajouté avec « "+(byId(i)?byId(i).name:"?")+" »")});
+  ola.filter(function(i){return dla.indexOf(i)<0}).forEach(function(i){c.push("lien retiré avec « "+(byId(i)?byId(i).name:"?")+" »")});
+  if(o.nation!==d.nation)c.push("nation : "+(o.nation?nName(o.nation):"aucune")+" → "+(d.nation?nName(d.nation):"aucune"));
+  if(d.type==="notion"){
+    if(o.validated!==d.validated)c.push(d.validated?"notion cochée comme validée":"notion décochée");
+    if(o.common!==d.common||JSON.stringify(o.nations)!==JSON.stringify(d.nations))c.push("portée modifiée");
+  }
+  if(JSON.stringify(o.refs)!==JSON.stringify(d.refs))c.push("notions de référence modifiées");
+  var om={};o.sections.forEach(function(s){om[s.id]=s});
+  var dm={};d.sections.forEach(function(s){dm[s.id]=s});
+  d.sections.forEach(function(s){
+    var p=om[s.id];
+    if(!p)c.push("section ajoutée : "+s.title);
+    else{if(p.title!==s.title)c.push("section renommée : « "+p.title+" » → « "+s.title+" »");if(p.text!==s.text)c.push("section modifiée : "+s.title)}
+  });
+  o.sections.forEach(function(s){if(!dm[s.id])c.push("section supprimée : "+s.title)});
+  var oo=o.sections.filter(function(s){return dm[s.id]}).map(function(s){return s.id}).join(),dd=d.sections.filter(function(s){return om[s.id]}).map(function(s){return s.id}).join();
+  if(oo!==dd)c.push("sections réordonnées");
+  return c;
+}
+function saveFiche(){
+  var d=E.d;
+  if(!(d.name||"").trim()){E.msg="Donne un nom à la fiche avant d'enregistrer.";drawEditor();return}
+  d.name=d.name.trim();if(d.type==="perso"){d.affinites=affs(d);idDef(d);d.age=d.age.trim();d.taille=d.taille.trim();d.date=d.date.trim();d.surnoms=d.surnoms.map(function(x){return x.trim()}).filter(Boolean)}
+  d.links=(d.links||[]).filter(function(i,k,a){return i!==d.id&&byId(i)&&a.indexOf(i)===k});
+  var t=now();
+  if(E.isNew){
+    d.createdAt=t;d.updatedAt=t;d.history=[{at:t,text:"Création"}];
+    S.fiches.push(d);log("Fiche créée : "+d.name+" ("+TYPES[d.type]+")",d.id);
+  }else{
+    var i=S.fiches.findIndex(function(f){return f.id===d.id});
+    var ch=diff(S.fiches[i],d);
+    if(!ch.length){closeEditor();return}
+    var txt="Modifié : "+ch.join(" ; ");
+    d.history=d.history.concat([{at:t,text:txt}]);d.updatedAt=t;delete d.example;
+    S.fiches[i]=d;log(d.name+" — "+txt,d.id);
+    S.contradictions=S.contradictions.filter(function(c){return c.fiches.indexOf(d.id)<0});
+  }
+  closeEditor();commit();
+}
+
+/* ---------- synchronisation avec le compte ---------- */
+var DBN=null;
+var SYNC={log:[],detail:"",status:"connecting",ready:{n:false,f:false,m:false,l:false},meta:{},gone:{},inited:false,running:false,dirty:false,changed:false,pendingRender:false,retry:null,localLists:null};
+function stable(o){
+  if(Array.isArray(o))return "["+o.map(stable).join(",")+"]";
+  if(o&&typeof o==="object")return "{"+Object.keys(o).sort().filter(function(k){return o[k]!==undefined}).map(function(k){return JSON.stringify(k)+":"+stable(o[k])}).join(",")+"}";
+  var j=JSON.stringify(o);return j===undefined?"null":j;
+}
+function slog(msg){
+  SYNC.log.unshift(new Date().toLocaleTimeString("fr-FR")+"  "+msg);
+  if(SYNC.log.length>80)SYNC.log.length=80;
+  var el=$("#synclog");if(el)el.textContent=SYNC.log.join("\n");
+}
+function errTxt(e){return ((e&&e.code)||"")+" "+((e&&e.message)||e||"")}
+function withTimeout(p,ms,label){
+  return new Promise(function(res,rej){
+    var t=setTimeout(function(){rej({code:"timeout",message:label+" sans réponse après "+Math.round(ms/1000)+" s"})},ms);
+    p.then(function(v){clearTimeout(t);res(v)},function(e){clearTimeout(t);rej(e)});
+  });
+}
+async function testWrite(){
+  if(!DBN){slog("TEST : pas d'accès aux données sur cet appareil");return}
+  try{
+    slog("TEST : écriture…");
+    await withTimeout(DBN.doc("meta/ping").set({at:new Date().toISOString(),version:"v9"}),15000,"écriture");
+    slog("TEST : écriture ok");
+    var g=await withTimeout(DBN.doc("meta/ping").get(),15000,"lecture");
+    slog("TEST : relecture "+(g.exists?"ok":"document absent"));
+  }catch(e){slog("TEST ÉCHEC : "+errTxt(e))}
+}
+function statusText(){return baseText()+(SYNC.detail?" ("+SYNC.detail+")":"")}
+function baseText(){
+  var s=SYNC.status;
+  return s==="on"?"Synchronisé avec ton compte":s==="saving"?"Enregistrement…":s==="connecting"?"Connexion au compte…":s==="slow"?"Connexion lente : données gardées sur cet appareil":s==="denied"?"Autorisation refusée : données gardées sur cet appareil":s==="readonly"?"Lecture seule : données gardées sur cet appareil":s==="error"?"Synchronisation en échec : données gardées sur cet appareil":"Données sur cet appareil seulement";
+}
+function refreshStatus(){
+  var el=$("#syncst");if(el){el.textContent=statusText();el.className="sync "+SYNC.status}
+  var b=$("#syncbtn");if(b)b.hidden=(!HAS_CLAUDE||SYNC.status==="on"||SYNC.status==="saving");
+}
+function setStatus(st,e){
+  SYNC.status=st;
+  if(st==="error")SYNC.detail=(e&&e.code)||"";else if(st==="on"||st==="saving")SYNC.detail="";
+  if(st==="error"&&e&&e.code==="invalid_argument")SYNC.status="readonly";
+  refreshStatus();
+}
+function syncOn(){return SYNC.status==="on"||SYNC.status==="saving"}
+function docsDesired(){
+  var d={};
+  S.nations.forEach(function(n){var o={name:n.name,ord:n.ord==null?0:n.ord};if(n.example)o.example=true;d["nations/"+n.id]=o});
+  S.fiches.forEach(function(f){d["fiches/"+f.id]=clone(f)});
+  d["meta/lists"]={cats:clone(S.cats||[]),catsV:1,subs:clone(S.subs||{}),lists:clone(S.lists),contradictions:clone(S.contradictions||[]),missing:clone(S.missing||[]),lastCheck:S.lastCheck||null};
+  d["meta/log"]={entries:clone((S.log||[]).slice(0,300))};
+  return d;
+}
+function schedulePush(){
+  if(!DBN||!SYNC.inited)return;
+  SYNC.dirty=true;
+  if(!SYNC.running)runPush();
+}
+async function runPush(){
+  SYNC.running=true;
+  try{
+    while(SYNC.dirty){
+      SYNC.dirty=false;
+      var want=docsDesired(),paths=Object.keys(want),changed=[];
+      paths.forEach(function(p){var m=SYNC.meta[p];if(!m||m.json!==stable(want[p]))changed.push(p)});
+      var gone=Object.keys(SYNC.meta).filter(function(p){return !want[p]&&(p.indexOf("nations/")===0||p.indexOf("fiches/")===0)});
+      if(changed.length||gone.length){setStatus("saving");slog("envoi : "+changed.length+" à écrire, "+gone.length+" à supprimer")}
+      for(var i=0;i<changed.length;i++){
+        var p=changed[i],m=SYNC.meta[p],t=Math.max((m?m.t:0)+1,Date.now());
+        try{await withTimeout(DBN.doc(p).set(Object.assign({},want[p],{_t:t})),20000,"écriture")}catch(e){slog("ÉCHEC écriture "+p+" : "+errTxt(e));throw e}
+        slog("écrit "+p);
+        SYNC.meta[p]={json:stable(want[p]),t:t,local:Date.now()};
+        delete SYNC.gone[p];
+      }
+      for(var j=0;j<gone.length;j++){
+        try{await withTimeout(DBN.doc(gone[j]).delete(),20000,"suppression")}catch(e){slog("ÉCHEC suppression "+gone[j]+" : "+errTxt(e));throw e}
+        slog("supprimé "+gone[j]);
+        SYNC.gone[gone[j]]=Date.now();delete SYNC.meta[gone[j]];
+      }
+    }
+    setStatus("on");
+  }catch(e){
+    slog("ERREUR d'envoi : "+errTxt(e));
+    setStatus("error",e);
+    if(!SYNC.retry&&!(e&&e.code==="invalid_argument")){SYNC.retry=setTimeout(function(){SYNC.retry=null;SYNC.dirty=true;schedulePush()},6000)}
+  }
+  SYNC.running=false;
+}
+function setLocal(path,c){
+  if(path.indexOf("nations/")===0){
+    var id=path.slice(8),n=S.nations.find(function(x){return x.id===id});
+    if(!n){n={id:id};S.nations.push(n)}
+    n.name=c.name;n.ord=c.ord;if(c.example)n.example=true;else delete n.example;
+  }else if(path.indexOf("fiches/")===0){
+    var fid=path.slice(7);
+    c.id=fid;c.nations=c.nations||[];c.refs=c.refs||[];c.sections=c.sections||[];c.history=c.history||[];
+    c.kind=c.kind||"";c.nation=c.nation||"";c.espece=c.espece||"";c.fonction=c.fonction||"";c.affinites=affs(c);delete c.affinite;delete c.affinite2;c.cat=c.cat||"";c.links=Array.isArray(c.links)?c.links:[];c.sousEspece=c.sousEspece||"";c.exception=!!c.exception;idDef(c);
+    var i=S.fiches.findIndex(function(x){return x.id===fid});
+    if(i<0)S.fiches.push(c);else S.fiches[i]=c;
+  }else if(path==="meta/lists"){
+    if(c.lists)S.lists=c.lists;
+    if(Array.isArray(c.cats))S.cats=c.cats;
+    if(c.subs&&typeof c.subs==="object")S.subs=c.subs;
+    if(!Array.isArray(S.lists.genre))S.lists.genre=["Homme","Femme","Agenre"];
+    LISTS.forEach(function(l){if(!Array.isArray(S.lists[l[0]]))S.lists[l[0]]=[]});
+    S.contradictions=c.contradictions||[];S.missing=Array.isArray(c.missing)?c.missing:(S.missing||[]);S.lastCheck=c.lastCheck||null;
+  }else if(path==="meta/log"){
+    S.log=c.entries||[];
+  }
+}
+function applyRemote(path,data){
+  if(!data)return;
+  if(SYNC.gone[path]&&Date.now()-SYNC.gone[path]<15000)return;
+  var t=data._t||0,c=Object.assign({},data);delete c._t;
+  var js=stable(c),m=SYNC.meta[path];
+  if(m&&t<=m.t)return;
+  if(m&&m.json===js){m.t=t;return}
+  SYNC.meta[path]={json:js,t:t,local:0};
+  slog("reçu "+path);
+  setLocal(path,c);SYNC.changed=true;
+}
+function removeLocal(p){
+  if(p.indexOf("nations/")===0){var id=p.slice(8);S.nations=S.nations.filter(function(n){return n.id!==id});if(V.nation===id)V.nation="all"}
+  else if(p.indexOf("fiches/")===0){var fid=p.slice(7);S.fiches=S.fiches.filter(function(f){return f.id!==fid});S.contradictions=S.contradictions.filter(function(c){return c.fiches.indexOf(fid)<0})}
+  delete SYNC.meta[p];SYNC.changed=true;
+}
+function sortNations(){S.nations.sort(function(a,b){return (a.ord||0)-(b.ord||0)})}
+function safeRender(){
+  var a=document.activeElement;
+  if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&$("#root").contains(a)){SYNC.pendingRender=true;return}
+  render();
+}
+document.addEventListener("focusout",function(){
+  if(!SYNC.pendingRender)return;
+  setTimeout(function(){var a=document.activeElement;if(!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&$("#root").contains(a))){SYNC.pendingRender=false;render()}},60);
+});
+function onColl(kind,prefix){return function(snap){
+  var seen={};
+  snap.docs.forEach(function(d){seen[prefix+d.id]=1;applyRemote(prefix+d.id,d.data())});
+  if(!snap.metadata.fromCache){
+    Object.keys(SYNC.meta).forEach(function(p){if(p.indexOf(prefix)===0&&!seen[p]&&Date.now()-(SYNC.meta[p].local||0)>15000)removeLocal(p)});
+    SYNC.ready[kind]=true;
+  }
+  afterSnap();
+}}
+function onDoc(kind,path){return function(snap){
+  if(snap.exists)applyRemote(path,snap.data());
+  if(!snap.metadata.fromCache)SYNC.ready[kind]=true;
+  afterSnap();
+}}
+function afterSnap(){
+  if(!SYNC.inited)return;
+  if(SYNC.changed){SYNC.changed=false;sortNations();persist();safeRender()}
+}
+function afterReady(){
+  SYNC.inited=true;SYNC.changed=false;
+  var remoteHas=Object.keys(SYNC.meta).length>0,note="";
+  if(remoteHas){
+    var inRemote=function(p){return !!SYNC.meta[p]};
+    S.fiches=S.fiches.filter(function(f){return !(f.example&&(S.noExamples||!inRemote("fiches/"+f.id)))});
+    var used={};S.fiches.forEach(function(f){if(f.nation)used[f.nation]=1;(f.nations||[]).forEach(function(i){used[i]=1})});
+    S.nations=S.nations.filter(function(n){return !(n.example&&(S.noExamples||!inRemote("nations/"+n.id))&&!used[n.id])});
+    var only=S.fiches.filter(function(f){return !inRemote("fiches/"+f.id)});
+    only.forEach(function(f){affs(f).forEach(function(v){if(S.lists.affinite.indexOf(v)<0)S.lists.affinite.push(v)});LISTS.forEach(function(l){if(l[0]==="affinite")return;var v=f[l[0]];if(v&&S.lists[l[0]].indexOf(v)<0)S.lists[l[0]].push(v)})});
+    if(only.length)note=only.length+(only.length>1?" fiches de cet appareil ont été ajoutées":" fiche de cet appareil a été ajoutée")+" à ton compte.";
+    if(V.nation!=="all"&&!S.nations.some(function(n){return n.id===V.nation}))V.nation="all";
+  }
+  sortNations();
+  setStatus("on");
+  if(note)V.syncNote=note;
+  persist();
+  render();
+}
+async function startSync(){
+  if(SYNC.starting||SYNC.inited)return;
+  SYNC.starting=true;
+  slog("lecture des données du compte…");
+  SYNC.detail="lecture 0/4";refreshStatus();
+  try{
+    var got=0;
+    var tr=function(p){return p.then(function(r){got++;SYNC.detail="lecture "+got+"/4";refreshStatus();return r})};
+    var rs=await Promise.all([tr(DBN.collection("nations").get()),tr(DBN.collection("fiches").get()),tr(DBN.doc("meta/lists").get()),tr(DBN.doc("meta/log").get())]);
+    rs[0].docs.forEach(function(d){applyRemote("nations/"+d.id,d.data())});
+    rs[1].docs.forEach(function(d){applyRemote("fiches/"+d.id,d.data())});
+    if(rs[2].exists)applyRemote("meta/lists",rs[2].data());
+    if(rs[3].exists)applyRemote("meta/log",rs[3].data());
+  }catch(e){
+    SYNC.starting=false;slog("ERREUR de lecture : "+errTxt(e));setStatus("error",e);
+    if(!(e&&e.code==="invalid_argument")){clearTimeout(SYNC.retryT);SYNC.retryT=setTimeout(startSync,8000)}
+    return;
+  }
+  SYNC.detail="";
+  slog("lecture ok : "+Object.keys(SYNC.meta).length+" documents sur le compte");
+  afterReady();
+  SYNC.starting=false;
+  var errH=function(e){slog("ERREUR de suivi : "+errTxt(e));setStatus("error",e)};
+  try{
+    DBN.collection("nations").onSnapshot(onColl("n","nations/"),errH);
+    DBN.collection("fiches").onSnapshot(onColl("f","fiches/"),errH);
+    DBN.doc("meta/lists").onSnapshot(onDoc("m","meta/lists"),errH);
+    DBN.doc("meta/log").onSnapshot(onDoc("l","meta/log"),errH);
+  }catch(e){setStatus("error",e)}
+}
+async function connect(){
+  if(SYNC.connecting)return;
+  SYNC.connecting=true;SYNC.inited=false;SYNC.starting=false;
+  setStatus("connecting");SYNC.detail="accès aux données";refreshStatus();
+  clearTimeout(SYNC.slowT);
+  SYNC.slowT=setTimeout(function(){if(!SYNC.inited&&SYNC.status==="connecting")setStatus("slow")},12000);
+  try{
+    var PM=await window.claude.use("permissions");
+    if(PM){
+      var st=await PM.state("db");
+      SYNC.detail="autorisation : "+st;refreshStatus();slog("autorisation : "+st);
+      if(st==="prompt"){SYNC.detail="autorisation demandée, réponds à la fenêtre";refreshStatus();st=(await PM.request(["db"])).db||st}
+      if(st==="denied"){SYNC.connecting=false;setStatus("denied");SYNC.detail="";refreshStatus();return}
+    }
+  }catch(e){}
+  try{DBN=await window.claude.use("db")}catch(e){DBN=null}
+  SYNC.connecting=false;
+  if(!DBN){setStatus("local");SYNC.detail="accès aux données indisponible ici";refreshStatus();return}
+  startSync();
+}
+async function openPerms(){
+  try{
+    var PM=await window.claude.use("permissions");
+    if(PM&&PM.manage){await PM.manage()}
+    else throw new Error("none");
+  }catch(e){
+    V.syncNote="Le panneau d'autorisations ne s'est pas ouvert. Cherche un menu « Autorisations » dans les options de la page (⋮ ou icône d'envoi, en haut à droite).";
+    render();return;
+  }
+  connect();
+}
+
+/* ---------- démarrage ---------- */
+render();
+/* ---------- sauvegarde automatique (version installée) ---------- */
+function lastAuto(){try{return +localStorage.getItem("dma-lastbackup")||0}catch(e){return 0}}
+function autoBackup(){
+  if(HAS_CLAUDE||!STORAGE_OK)return;
+  var real=S.fiches.filter(function(f){return !f.example}).length;
+  if(!real)return;
+  var t=Date.now();
+  if(t-lastAuto()<86400000)return;
+  try{saveBlob(backupName(),JSON.stringify(S,null,1));localStorage.setItem("dma-lastbackup",String(t));localStorage.setItem("dma-autocopy",JSON.stringify(S));log("Sauvegarde automatique téléchargée");persist()}catch(e){}
+}
+setTimeout(autoBackup,3000);
+setInterval(autoBackup,1800000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)autoBackup()});
+if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0){navigator.serviceWorker.register("sw.js").catch(function(){})}
+
+(function(){
+  if(!(window.claude&&window.claude.use)){setStatus("local");return}
+  window.claude.use("sample").then(function(x){SAMPLE=x;if(!E)render()},function(){});
+  window.claude.use("downloads").then(function(x){DL=x;if(!E)render()},function(){});
+  connect();
+})();
+})();
+</script>
+</body></html>
